@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initSmoothScrolling();
     initAnimations();
     initAccessibility();
+    initCookieConsent();
+    initModals();
+    initAuthForms();
 });
 
 // Navigation functionality
@@ -612,12 +615,748 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// GDPR/Privacy compliance placeholder
-function initPrivacyCompliance() {
-    // Add cookie consent banner if needed
-    // This is a placeholder for privacy compliance features
-    console.log('Privacy compliance initialized');
+// Cookie Consent Management
+function initCookieConsent() {
+    const cookieConsent = document.getElementById('cookieConsent');
+    const cookieModal = document.getElementById('cookieModal');
+    const acceptAllBtn = document.getElementById('acceptAll');
+    const acceptSelectedBtn = document.getElementById('acceptSelected');
+    const cookieSettingsBtn = document.getElementById('cookieSettings');
+    const closeCookieModalBtn = document.getElementById('closeCookieModal');
+    const saveCookiePreferencesBtn = document.getElementById('saveCookiePreferences');
+
+    // Check if user has already made cookie choices
+    if (!getCookie('cookieConsent')) {
+        // Show cookie banner after 2 seconds
+        setTimeout(() => {
+            cookieConsent.classList.add('show');
+        }, 2000);
+    } else {
+        // Apply saved cookie preferences
+        applyCookiePreferences();
+    }
+
+    // Accept all cookies
+    acceptAllBtn.addEventListener('click', function() {
+        const preferences = {
+            essential: true,
+            analytics: true,
+            marketing: true,
+            timestamp: new Date().toISOString()
+        };
+        saveCookiePreferences(preferences);
+        hideCookieBanner();
+    });
+
+    // Accept selected cookies
+    acceptSelectedBtn.addEventListener('click', function() {
+        const analyticsCookies = document.getElementById('analyticsCookies');
+        const marketingCookies = document.getElementById('marketingCookies');
+        
+        const preferences = {
+            essential: true,
+            analytics: analyticsCookies ? analyticsCookies.checked : false,
+            marketing: marketingCookies ? marketingCookies.checked : false,
+            timestamp: new Date().toISOString()
+        };
+        saveCookiePreferences(preferences);
+        hideCookieBanner();
+    });
+
+    // Show cookie settings modal
+    cookieSettingsBtn.addEventListener('click', function() {
+        showCookieModal();
+    });
+
+    // Close cookie modal
+    closeCookieModalBtn.addEventListener('click', function() {
+        hideCookieModal();
+    });
+
+    // Save cookie preferences from modal
+    saveCookiePreferencesBtn.addEventListener('click', function() {
+        const analyticsCookies = document.getElementById('analyticsCookies');
+        const marketingCookies = document.getElementById('marketingCookies');
+        
+        const preferences = {
+            essential: true,
+            analytics: analyticsCookies.checked,
+            marketing: marketingCookies.checked,
+            timestamp: new Date().toISOString()
+        };
+        saveCookiePreferences(preferences);
+        hideCookieModal();
+        hideCookieBanner();
+    });
+
+    // Close modal when clicking outside
+    cookieModal.addEventListener('click', function(e) {
+        if (e.target === cookieModal) {
+            hideCookieModal();
+        }
+    });
 }
 
-// Initialize privacy compliance
-initPrivacyCompliance();
+// Cookie utility functions
+function setCookie(name, value, days) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure`;
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+
+function saveCookiePreferences(preferences) {
+    setCookie('cookieConsent', JSON.stringify(preferences), 365);
+    applyCookiePreferences(preferences);
+    
+    // Track consent choices
+    trackEvent('Cookie Consent', 'Preferences Saved', 
+        `Analytics: ${preferences.analytics}, Marketing: ${preferences.marketing}`);
+}
+
+function applyCookiePreferences(preferences = null) {
+    if (!preferences) {
+        const saved = getCookie('cookieConsent');
+        preferences = saved ? JSON.parse(saved) : null;
+    }
+    
+    if (preferences) {
+        // Apply analytics cookies
+        if (preferences.analytics) {
+            // Initialize Google Analytics or other analytics tools
+            console.log('Analytics cookies enabled');
+            // Example: gtag('config', 'GA_MEASUREMENT_ID');
+        }
+        
+        // Apply marketing cookies
+        if (preferences.marketing) {
+            // Initialize marketing/advertising tools
+            console.log('Marketing cookies enabled');
+            // Example: Initialize Facebook Pixel, Google Ads, etc.
+        }
+        
+        // Update UI to reflect current preferences
+        const analyticsCookies = document.getElementById('analyticsCookies');
+        const marketingCookies = document.getElementById('marketingCookies');
+        
+        if (analyticsCookies) analyticsCookies.checked = preferences.analytics;
+        if (marketingCookies) marketingCookies.checked = preferences.marketing;
+    }
+}
+
+function showCookieModal() {
+    const cookieModal = document.getElementById('cookieModal');
+    cookieModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function hideCookieModal() {
+    const cookieModal = document.getElementById('cookieModal');
+    cookieModal.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+function hideCookieBanner() {
+    const cookieConsent = document.getElementById('cookieConsent');
+    cookieConsent.classList.remove('show');
+}
+
+// Modal Management
+function initModals() {
+    const signinModal = document.getElementById('signinModal');
+    const signupModal = document.getElementById('signupModal');
+    
+    // Navigation buttons
+    const signinBtns = document.querySelectorAll('[data-action="signin"]');
+    const signupBtns = document.querySelectorAll('[data-action="signup"]');
+    
+    // Close buttons
+    const closeSigninBtn = document.getElementById('closeSigninModal');
+    const closeSignupBtn = document.getElementById('closeSignupModal');
+    
+    // Switch between modals
+    const switchToSignup = document.getElementById('switchToSignup');
+    const switchToSignin = document.getElementById('switchToSignin');
+
+    // Open signin modal
+    signinBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showModal(signinModal);
+            trackEvent('User Interaction', 'Modal Open', 'Sign In');
+        });
+    });
+
+    // Open signup modal
+    signupBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showModal(signupModal);
+            trackEvent('User Interaction', 'Modal Open', 'Sign Up');
+        });
+    });
+
+    // Close modals
+    closeSigninBtn.addEventListener('click', () => hideModal(signinModal));
+    closeSignupBtn.addEventListener('click', () => hideModal(signupModal));
+
+    // Switch between modals
+    if (switchToSignup) {
+        switchToSignup.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideModal(signinModal);
+            showModal(signupModal);
+            trackEvent('User Interaction', 'Modal Switch', 'Sign In to Sign Up');
+        });
+    }
+
+    if (switchToSignin) {
+        switchToSignin.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideModal(signupModal);
+            showModal(signinModal);
+            trackEvent('User Interaction', 'Modal Switch', 'Sign Up to Sign In');
+        });
+    }
+
+    // Close modals when clicking outside
+    [signinModal, signupModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    hideModal(modal);
+                }
+            });
+        }
+    });
+
+    // Close modals with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideModal(signinModal);
+            hideModal(signupModal);
+        }
+    });
+}
+
+function showModal(modal) {
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    // Focus on first input
+    const firstInput = modal.querySelector('input');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+    }
+}
+
+function hideModal(modal) {
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+    
+    // Reset form
+    const form = modal.querySelector('form');
+    if (form) {
+        form.reset();
+        clearFormErrors(form);
+    }
+}
+
+// Authentication Forms
+function initAuthForms() {
+    const signinForm = document.getElementById('signinForm');
+    const signupForm = document.getElementById('signupForm');
+
+    // Signin form submission
+    if (signinForm) {
+        signinForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await handleSignin(this);
+        });
+    }
+
+    // Signup form submission
+    if (signupForm) {
+        signupForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await handleSignup(this);
+        });
+
+        // Real-time password validation
+        const password = signupForm.querySelector('#signupPassword');
+        const confirmPassword = signupForm.querySelector('#confirmPassword');
+        
+        if (password && confirmPassword) {
+            confirmPassword.addEventListener('input', function() {
+                validatePasswordMatch(password, confirmPassword);
+            });
+            
+            password.addEventListener('input', function() {
+                validatePasswordStrength(password);
+                if (confirmPassword.value) {
+                    validatePasswordMatch(password, confirmPassword);
+                }
+            });
+        }
+    }
+}
+
+async function handleSignin(form) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    try {
+        // Show loading state
+        submitBtn.textContent = 'Signing In...';
+        submitBtn.disabled = true;
+        
+        clearFormErrors(form);
+        
+        const formData = new FormData(form);
+        const credentials = {
+            email: formData.get('email'),
+            password: formData.get('password')
+        };
+
+        // Validate form
+        if (!validateEmail(credentials.email)) {
+            showFormError(form, 'email', 'Please enter a valid email address');
+            return;
+        }
+
+        if (!credentials.password) {
+            showFormError(form, 'password', 'Password is required');
+            return;
+        }
+
+        // Authenticate with Supabase
+        const authResult = await SupabaseAuth.signIn(credentials.email, credentials.password);
+        
+        if (authResult.user) {
+            // Get user profile from backend
+            const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
+            
+            // Store user info
+            localStorage.setItem('authToken', authResult.session.access_token);
+            localStorage.setItem('userRole', userProfile.user.role);
+            localStorage.setItem('userName', userProfile.user.name);
+            localStorage.setItem('userId', userProfile.user.id);
+            
+            // Track successful signin
+            trackEvent('User Authentication', 'Sign In Success', userProfile.user.role);
+            
+            // Hide modal
+            hideModal(document.getElementById('signinModal'));
+            
+            // Redirect based on role or show success
+            if (userProfile.user.role === 'admin' || userProfile.user.role === 'staff') {
+                showSuccessMessage('Welcome back! Redirecting to admin panel...');
+                setTimeout(() => {
+                    window.location.href = 'admin-panel.html';
+                }, 2000);
+            } else {
+                showSuccessMessage('Welcome back! You are now signed in.');
+                updateUIForAuthenticatedUser(userProfile.user);
+            }
+        }
+    } catch (error) {
+        console.error('Signin error:', error);
+        let errorMessage = 'Invalid email or password';
+        
+        if (error.message.includes('Invalid login credentials')) {
+            errorMessage = 'Invalid email or password';
+        } else if (error.message.includes('Network')) {
+            errorMessage = 'Network error. Please try again.';
+        } else if (error.message.includes('Email not confirmed')) {
+            errorMessage = 'Please check your email and confirm your account before signing in.';
+        }
+        
+        showFormError(form, 'general', errorMessage);
+        trackEvent('User Authentication', 'Sign In Failed', error.message);
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+async function handleSignup(form) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    try {
+        // Show loading state
+        submitBtn.textContent = 'Creating Account...';
+        submitBtn.disabled = true;
+        
+        clearFormErrors(form);
+        
+        const formData = new FormData(form);
+        const userData = {
+            firstName: formData.get('firstName'),
+            lastName: formData.get('lastName'),
+            email: formData.get('email'),
+            phone: formData.get('phone'),
+            password: formData.get('password'),
+            confirmPassword: formData.get('confirmPassword')
+        };
+
+        // Validate form
+        if (!validateSignupForm(form, userData)) {
+            return;
+        }
+
+        // Register with backend API (which handles Supabase auth + profile creation)
+        const registrationData = await SupabaseAPI.makeRequest('/api/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: `${userData.firstName} ${userData.lastName}`,
+                email: userData.email,
+                password: userData.password,
+                phone: userData.phone
+            })
+        });
+
+        // Track successful signup
+        trackEvent('User Authentication', 'Sign Up Success', 'Client');
+        
+        // Show success message
+        showSuccessMessage('Account created successfully! Please check your email to verify your account, then sign in.');
+        
+        // Switch to signin modal
+        setTimeout(() => {
+            hideModal(document.getElementById('signupModal'));
+            showModal(document.getElementById('signinModal'));
+            
+            // Pre-fill email in signin form
+            const signinEmail = document.getElementById('signinEmail');
+            if (signinEmail) {
+                signinEmail.value = userData.email;
+            }
+        }, 3000);
+
+    } catch (error) {
+        console.error('Signup error:', error);
+        let errorMessage = 'Registration failed. Please try again.';
+        
+        if (error.message.includes('already registered') || error.message.includes('already exists')) {
+            errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (error.message.includes('weak password')) {
+            errorMessage = 'Password is too weak. Please use at least 8 characters with uppercase, lowercase, and numbers.';
+        } else if (error.message.includes('invalid email')) {
+            errorMessage = 'Please enter a valid email address.';
+        }
+        
+        showFormError(form, 'general', errorMessage);
+        trackEvent('User Authentication', 'Sign Up Failed', error.message);
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// Form validation functions
+function validateSignupForm(form, userData) {
+    let isValid = true;
+
+    // Name validation
+    if (!userData.firstName.trim()) {
+        showFormError(form, 'firstName', 'First name is required');
+        isValid = false;
+    }
+
+    if (!userData.lastName.trim()) {
+        showFormError(form, 'lastName', 'Last name is required');
+        isValid = false;
+    }
+
+    // Email validation
+    if (!validateEmail(userData.email)) {
+        showFormError(form, 'signupEmail', 'Please enter a valid email address');
+        isValid = false;
+    }
+
+    // Phone validation
+    if (!validatePhone(userData.phone)) {
+        showFormError(form, 'phone', 'Please enter a valid phone number');
+        isValid = false;
+    }
+
+    // Password validation
+    if (!validatePasswordStrength(form.querySelector('#signupPassword'))) {
+        isValid = false;
+    }
+
+    // Password confirmation
+    if (!validatePasswordMatch(form.querySelector('#signupPassword'), form.querySelector('#confirmPassword'))) {
+        isValid = false;
+    }
+
+    // Terms acceptance
+    const termsCheckbox = form.querySelector('#termsAccept');
+    if (!termsCheckbox.checked) {
+        showFormError(form, 'termsAccept', 'You must accept the Terms of Service');
+        isValid = false;
+    }
+
+    return isValid;
+}
+
+function validateEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function validatePhone(phone) {
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+}
+
+function validatePasswordStrength(passwordInput) {
+    const password = passwordInput.value;
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    
+    if (password.length < minLength) {
+        showFormError(passwordInput.form, passwordInput.name, 'Password must be at least 8 characters long');
+        return false;
+    }
+    
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+        showFormError(passwordInput.form, passwordInput.name, 'Password must contain uppercase, lowercase, and numbers');
+        return false;
+    }
+    
+    clearFormError(passwordInput.form, passwordInput.name);
+    return true;
+}
+
+function validatePasswordMatch(passwordInput, confirmPasswordInput) {
+    if (passwordInput.value !== confirmPasswordInput.value) {
+        showFormError(confirmPasswordInput.form, confirmPasswordInput.name, 'Passwords do not match');
+        return false;
+    }
+    
+    clearFormError(confirmPasswordInput.form, confirmPasswordInput.name);
+    return true;
+}
+
+function showFormError(form, fieldName, message) {
+    clearFormError(form, fieldName);
+    
+    const field = form.querySelector(`[name="${fieldName}"], #${fieldName}`);
+    if (field) {
+        field.style.borderColor = '#ef4444';
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'form-error';
+        errorDiv.style.color = '#ef4444';
+        errorDiv.style.fontSize = '14px';
+        errorDiv.style.marginTop = '4px';
+        errorDiv.textContent = message;
+        
+        field.parentNode.appendChild(errorDiv);
+    } else if (fieldName === 'general') {
+        // Show general error at top of form
+        const existingError = form.querySelector('.form-general-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'form-general-error';
+        errorDiv.style.background = '#fef2f2';
+        errorDiv.style.border = '1px solid #fecaca';
+        errorDiv.style.color = '#dc2626';
+        errorDiv.style.padding = '12px';
+        errorDiv.style.borderRadius = '6px';
+        errorDiv.style.marginBottom = '16px';
+        errorDiv.textContent = message;
+        
+        form.insertBefore(errorDiv, form.firstChild);
+    }
+}
+
+function clearFormError(form, fieldName) {
+    const field = form.querySelector(`[name="${fieldName}"], #${fieldName}`);
+    if (field) {
+        field.style.borderColor = '';
+        const errorDiv = field.parentNode.querySelector('.form-error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+}
+
+function clearFormErrors(form) {
+    // Clear field errors
+    const errors = form.querySelectorAll('.form-error');
+    errors.forEach(error => error.remove());
+    
+    // Clear general errors
+    const generalErrors = form.querySelectorAll('.form-general-error');
+    generalErrors.forEach(error => error.remove());
+    
+    // Reset field border colors
+    const inputs = form.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.style.borderColor = '';
+    });
+}
+
+function showSuccessMessage(message) {
+    // Create success notification
+    const successDiv = document.createElement('div');
+    successDiv.style.position = 'fixed';
+    successDiv.style.top = '20px';
+    successDiv.style.right = '20px';
+    successDiv.style.background = '#10b981';
+    successDiv.style.color = 'white';
+    successDiv.style.padding = '16px 24px';
+    successDiv.style.borderRadius = '8px';
+    successDiv.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+    successDiv.style.zIndex = '30000';
+    successDiv.style.fontWeight = '500';
+    successDiv.textContent = message;
+    
+    document.body.appendChild(successDiv);
+    
+    // Animate in
+    successDiv.style.transform = 'translateX(100%)';
+    successDiv.style.transition = 'transform 0.3s ease';
+    setTimeout(() => {
+        successDiv.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        successDiv.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (successDiv.parentNode) {
+                successDiv.parentNode.removeChild(successDiv);
+            }
+        }, 300);
+    }, 5000);
+}
+
+// Update UI for authenticated user
+function updateUIForAuthenticatedUser(user) {
+    // Update navigation menu
+    const signinBtn = document.querySelector('[data-action="signin"]');
+    const signupBtn = document.querySelector('[data-action="signup"]');
+    
+    if (signinBtn && signupBtn) {
+        // Replace signin/signup buttons with user menu
+        const userMenu = document.createElement('div');
+        userMenu.className = 'user-menu';
+        userMenu.innerHTML = `
+            <span class="user-name">Welcome, ${user.name.split(' ')[0]}!</span>
+            <button class="btn-secondary" onclick="handleSignOut()">Sign Out</button>
+        `;
+        
+        // Replace the signup button with user menu
+        signupBtn.parentNode.replaceChild(userMenu, signupBtn);
+        signinBtn.style.display = 'none';
+    }
+    
+    // Update hero section if user is on main page
+    const heroButtons = document.querySelector('.hero-buttons');
+    if (heroButtons) {
+        heroButtons.innerHTML = `
+            <a href="#services" class="btn btn-primary">Book Appointment</a>
+            <a href="#" class="btn btn-secondary" onclick="loadUserDashboard()">My Dashboard</a>
+        `;
+    }
+}
+
+// Handle sign out
+async function handleSignOut() {
+    try {
+        await SupabaseAuth.signOut();
+        
+        // Clear local storage
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userId');
+        
+        // Show success message
+        showSuccessMessage('You have been signed out successfully.');
+        
+        // Reload page to reset UI
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+        trackEvent('User Authentication', 'Sign Out Success', 'Manual');
+    } catch (error) {
+        console.error('Sign out error:', error);
+        showSuccessMessage('You have been signed out.');
+        window.location.reload();
+    }
+}
+
+// Load user dashboard (placeholder)
+function loadUserDashboard() {
+    showSuccessMessage('Dashboard coming soon! For now, you can book appointments through our contact form.');
+}
+
+// Check authentication state on page load
+async function checkAuthState() {
+    try {
+        const session = await SupabaseAuth.getCurrentSession();
+        if (session?.user) {
+            // Get user profile
+            const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
+            updateUIForAuthenticatedUser(userProfile.user);
+        }
+    } catch (error) {
+        console.log('No active session');
+        // Clear any stale tokens
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userId');
+    }
+}
+
+// Listen for auth state changes
+function initAuthStateListener() {
+    if (typeof SupabaseAuth !== 'undefined') {
+        SupabaseAuth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event, session);
+            
+            if (event === 'SIGNED_IN' && session?.user) {
+                // User signed in - the UI will be updated by the sign in handler
+                console.log('User signed in');
+            } else if (event === 'SIGNED_OUT') {
+                // User signed out
+                console.log('User signed out');
+                // UI reset will be handled by sign out handler
+            }
+        });
+    }
+}
+
+// Initialize privacy compliance and authentication
+console.log('Privacy compliance and authentication initialized');
+
+// Check auth state and listen for changes when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure Supabase is initialized
+    setTimeout(() => {
+        checkAuthState();
+        initAuthStateListener();
+    }, 100);
+});

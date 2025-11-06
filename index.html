@@ -10,6 +10,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Supabase CDN -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Configuration -->
+    <script src="js/supabase-config.js"></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -25,7 +31,8 @@
                 <a href="#about" class="nav-link">About</a>
                 <a href="#testimonials" class="nav-link">Testimonials</a>
                 <a href="#contact" class="nav-link">Contact</a>
-                <a href="#contact" class="nav-link cta-button">Book Appointment</a>
+                <a href="#" class="nav-link login-btn" data-action="signin">Sign In</a>
+                <a href="#" class="nav-link cta-button" data-action="signup">Sign Up</a>
             </div>
             <div class="hamburger">
                 <span></span>
@@ -39,11 +46,11 @@
     <section id="home" class="hero">
         <div class="hero-container">
             <div class="hero-content">
-                <h1 class="hero-title">Your Journey to Better Health Starts Here</h1>
-                <p class="hero-subtitle">Professional mental and physical health services with compassionate, experienced healthcare providers dedicated to your wellbeing.</p>
+                <h1 class="hero-title">Join Thousands Who've Transformed Their Health</h1>
+                <p class="hero-subtitle">Access professional mental and physical health services online. Create your patient account today for personalized care, appointment booking, and 24/7 health support.</p>
                 <div class="hero-buttons">
-                    <a href="#contact" class="btn btn-primary">Schedule Consultation</a>
-                    <a href="#services" class="btn btn-secondary">Learn More</a>
+                    <a href="#" class="btn btn-primary" data-action="signup">Create Patient Account</a>
+                    <a href="#" class="btn btn-secondary" data-action="signin">Already a Patient? Sign In</a>
                 </div>
                 <div class="hero-stats">
                     <div class="stat">
@@ -384,6 +391,161 @@
             </div>
         </div>
     </footer>
+
+    <!-- Cookie Consent Banner -->
+    <div id="cookieConsent" class="cookie-consent">
+        <div class="cookie-content">
+            <div class="cookie-text">
+                <h4>🍪 We value your privacy</h4>
+                <p>We use cookies to enhance your experience, analyze site usage, and personalize content. You can choose which types of cookies to accept.</p>
+            </div>
+            <div class="cookie-actions">
+                <button id="cookieSettings" class="btn-secondary">Cookie Settings</button>
+                <button id="acceptSelected" class="btn-primary">Accept Selected</button>
+                <button id="acceptAll" class="btn-primary">Accept All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cookie Settings Modal -->
+    <div id="cookieModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Cookie Preferences</h3>
+                <span class="close" id="closeCookieModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="cookie-category">
+                    <div class="cookie-header">
+                        <label class="switch">
+                            <input type="checkbox" id="essentialCookies" checked disabled>
+                            <span class="slider"></span>
+                        </label>
+                        <h4>Essential Cookies (Required)</h4>
+                    </div>
+                    <p>These cookies are necessary for the website to function and cannot be switched off.</p>
+                </div>
+                
+                <div class="cookie-category">
+                    <div class="cookie-header">
+                        <label class="switch">
+                            <input type="checkbox" id="analyticsCookies">
+                            <span class="slider"></span>
+                        </label>
+                        <h4>Analytics Cookies</h4>
+                    </div>
+                    <p>These cookies help us understand how visitors interact with our website by collecting anonymous information.</p>
+                </div>
+                
+                <div class="cookie-category">
+                    <div class="cookie-header">
+                        <label class="switch">
+                            <input type="checkbox" id="marketingCookies">
+                            <span class="slider"></span>
+                        </label>
+                        <h4>Marketing Cookies</h4>
+                    </div>
+                    <p>These cookies track your online activity to help advertisers deliver more relevant advertising.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveCookiePreferences" class="btn-primary">Save Preferences</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign In Modal -->
+    <div id="signinModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Sign In to Your Account</h3>
+                <span class="close" id="closeSigninModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="signinForm">
+                    <div class="form-group">
+                        <label for="signinEmail">Email Address</label>
+                        <input type="email" id="signinEmail" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signinPassword">Password</label>
+                        <input type="password" id="signinPassword" name="password" required>
+                    </div>
+                    <div class="form-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="rememberMe">
+                            <span class="checkmark"></span>
+                            Remember me
+                        </label>
+                        <a href="#" class="forgot-password">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="btn-primary btn-full">Sign In</button>
+                </form>
+                <div class="modal-footer">
+                    <p>Don't have an account? <a href="#" id="switchToSignup">Sign up here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sign Up Modal -->
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Your Account</h3>
+                <span class="close" id="closeSignupModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="signupForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name</label>
+                            <input type="text" id="firstName" name="firstName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Last Name</label>
+                            <input type="text" id="lastName" name="lastName" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupEmail">Email Address</label>
+                        <input type="email" id="signupEmail" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupPassword">Password</label>
+                        <input type="password" id="signupPassword" name="password" required>
+                        <small>Must be at least 8 characters with one uppercase, lowercase, and number</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="termsAccept" required>
+                            <span class="checkmark"></span>
+                            I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="marketingConsent">
+                            <span class="checkmark"></span>
+                            I'd like to receive health tips and appointment reminders via email
+                        </label>
+                    </div>
+                    <button type="submit" class="btn-primary btn-full">Create Account</button>
+                </form>
+                <div class="modal-footer">
+                    <p>Already have an account? <a href="#" id="switchToSignin">Sign in here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

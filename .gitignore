@@ -1,0 +1,358 @@
+# =====================================================
+# Healthcare Appointment System - .gitignore
+# =====================================================
+
+# Environment Variables (CRITICAL - Contains API Keys)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+
+# Supabase Configuration (if you create local config files)
+supabase/.env
+.supabase/
+
+# =====================================================
+# Node.js Dependencies
+# =====================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Package lock files (choose one based on your package manager)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# =====================================================
+# Runtime and Build Files
+# =====================================================
+dist/
+build/
+.next/
+.nuxt/
+.vuepress/dist
+.serverless/
+.cache/
+.parcel-cache/
+
+# =====================================================
+# Logs and Debugging
+# =====================================================
+*.log
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+lib-cov/
+coverage/
+.nyc_output/
+
+# =====================================================
+# Database Files (Local Development)
+# =====================================================
+*.sqlite
+*.sqlite3
+*.db
+database.json
+db.json
+
+# PostgreSQL dumps
+*.sql.backup
+*.dump
+
+# =====================================================
+# IDE and Editor Files
+# =====================================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# =====================================================
+# Operating System Files
+# =====================================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =====================================================
+# Security and Certificates
+# =====================================================
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+certificates/
+ssl/
+tls/
+
+# JWT secrets
+jwt-secret.txt
+auth-keys/
+
+# =====================================================
+# Backup and Temporary Files
+# =====================================================
+*.bak
+*.backup
+*.tmp
+*.temp
+*~
+.#*
+backup/
+backups/
+temp/
+tmp/
+
+# =====================================================
+# Healthcare/Medical Specific
+# =====================================================
+
+# Patient data files (should never be in git)
+patient-data/
+medical-records/
+phi-data/
+hipaa-files/
+
+# Test data with sensitive info
+test-data-real/
+sample-patients.json
+real-appointments.json
+
+# =====================================================
+# Deployment and CI/CD
+# =====================================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# Kubernetes
+k8s-secrets/
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+terraform.tfvars.json
+
+# AWS
+.aws/
+aws-config/
+
+# Vercel
+.vercel/
+
+# Netlify
+.netlify/
+
+# =====================================================
+# Testing and Coverage
+# =====================================================
+coverage/
+.coverage
+.pytest_cache/
+.tox/
+htmlcov/
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jest
+jest-results.json
+
+# =====================================================
+# Development Tools
+# =====================================================
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# Stylelint cache
+.stylelintcache
+
+# Rush
+common/deploy/
+common/temp/
+common/autoinstallers/*/.npmrc
+**/.rush/temp/
+
+# =====================================================
+# API Documentation
+# =====================================================
+api-docs/private/
+postman-collections/private/
+
+# =====================================================
+# Monitoring and Analytics
+# =====================================================
+newrelic_agent.log
+monitoring-config.json
+
+# =====================================================
+# Custom Application Files
+# =====================================================
+
+# Local configuration overrides
+config/local.js
+config/local.json
+local-config/
+
+# User uploads (in development)
+uploads/
+user-files/
+avatars/
+documents/
+
+# Email templates with real content
+email-templates/production/
+
+# SMS/Twilio credentials
+sms-config.json
+twilio-credentials.json
+
+# Payment processing (Stripe, etc.)
+payment-config.json
+stripe-keys.json
+
+# =====================================================
+# Performance and Optimization
+# =====================================================
+.bundle-analyzer/
+webpack-bundle-analyzer-report.html
+lighthouse-reports/
+
+# =====================================================
+# Miscellaneous
+# =====================================================
+
+# Runtime configuration
+.pm2/
+.forever/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# =====================================================
+# IMPORTANT REMINDERS
+# =====================================================
+
+# NEVER commit:
+# - .env files (contain Supabase keys)
+# - Real patient data
+# - API keys or secrets
+# - Database credentials
+# - SSL certificates
+# - Personal health information (PHI)
+# - HIPAA-regulated content
+
+# ALWAYS verify before committing:
+# - No hardcoded credentials in code
+# - No real email addresses in test data
+# - No production URLs in development files
+# - No sensitive configuration values

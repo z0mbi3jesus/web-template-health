@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Calendar - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2D3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .login-section, .admin-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #2D3748;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #718096;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .card h3 {
+            color: #2D3748;
+            margin-bottom: 15px;
+        }
+
+        .slot-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .slot-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slot-info {
+            flex: 1;
+        }
+
+        .slot-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e6fffa;
+            border-radius: 8px;
+        }
+
+        .logout-btn {
+            background: #e53e3e;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .day-labels {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .day-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Health Calendar</h1>
+            <p>Administrative Time Slot Management System</p>
+        </div>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <h2 style="text-align: center; margin-bottom: 20px; color: #2D3748;">Admin Login</h2>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="admin@healthclinic.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" value="password123" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn" style="width: 100%;">Login</button>
+                </div>
+            </form>
+            <div id="loginMessage" class="status-message hidden"></div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="admin-panel hidden">
+            <div id="userInfo" class="user-info">
+                <div>
+                    <strong id="userName">Loading...</strong>
+                    <span id="userRole" style="color: #718096;"></span>
+                </div>
+                <button id="logoutBtn" class="btn logout-btn">Logout</button>
+            </div>
+
+            <div id="statusMessage" class="status-message hidden"></div>
+
+            <div class="grid">
+                <!-- Appointment Types -->
+                <div class="card">
+                    <h3>📋 Appointment Types</h3>
+                    <div id="appointmentTypes" class="loading">Loading appointment types...</div>
+                </div>
+
+                <!-- Staff Members -->
+                <div class="card">
+                    <h3>👥 Staff Members</h3>
+                    <div id="staffList" class="loading">Loading staff members...</div>
+                </div>
+            </div>
+
+            <!-- Add New Time Slot -->
+            <div class="card">
+                <h3>➕ Add New Time Slot</h3>
+                <form id="addSlotForm" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="form-group">
+                        <label for="staffSelect">Staff Member</label>
+                        <select id="staffSelect" name="staff_id" required>
+                            <option value="">Select staff member...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="appointmentTypeSelect">Appointment Type</label>
+                        <select id="appointmentTypeSelect" name="appointment_type_id" required>
+                            <option value="">Select appointment type...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="startTime">Start Time</label>
+                        <input type="time" id="startTime" name="start_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endTime">End Time</label>
+                        <input type="time" id="endTime" name="end_time" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dayOfWeek">Day of Week</label>
+                        <select id="dayOfWeek" name="day_of_week" required>
+                            <option value="">Select day...</option>
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="0">Sunday</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="isRecurring" style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="isRecurring" name="is_recurring" checked>
+                            Recurring Weekly
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn" style="width: 100%;">Add Time Slot</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Bulk Weekly Schedule -->
+            <div class="card">
+                <h3>📅 Create Weekly Schedule</h3>
+                <form id="weeklyScheduleForm">
+                    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label for="bulkStaffSelect">Staff Member</label>
+                            <select id="bulkStaffSelect" name="staff_id" required>
+                                <option value="">Select staff member...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulkAppointmentTypeSelect">Appointment Type</label>
+                            <select id="bulkAppointmentTypeSelect" name="appointment_type_id" required>
+                                <option value="">Select appointment type...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulkStartTime">Start Time</label>
+                            <input type="time" id="bulkStartTime" name="start_time" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulkEndTime">End Time</label>
+                            <input type="time" id="bulkEndTime" name="end_time" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Select Days</label>
+                        <div class="day-labels">
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day1" name="days" value="1" checked>
+                                <label for="day1">Mon</label>
+                            </div>
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day2" name="days" value="2" checked>
+                                <label for="day2">Tue</label>
+                            </div>
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day3" name="days" value="3" checked>
+                                <label for="day3">Wed</label>
+                            </div>
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day4" name="days" value="4" checked>
+                                <label for="day4">Thu</label>
+                            </div>
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day5" name="days" value="5" checked>
+                                <label for="day5">Fri</label>
+                            </div>
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day6" name="days" value="6">
+                                <label for="day6">Sat</label>
+                            </div>
+                            <div class="day-checkbox">
+                                <input type="checkbox" id="day0" name="days" value="0">
+                                <label for="day0">Sun</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Create Weekly Schedule</button>
+                </form>
+            </div>
+
+            <!-- Existing Time Slots -->
+            <div class="card">
+                <h3>🕐 Existing Time Slots</h3>
+                <div class="form-group">
+                    <label for="slotStaffFilter">Filter by Staff Member</label>
+                    <select id="slotStaffFilter">
+                        <option value="">All staff members</option>
+                    </select>
+                </div>
+                <div id="timeSlotsList" class="slot-list loading">Loading time slots...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+        let appointmentTypes = [];
+        let staff = [];
+        let timeSlots = [];
+
+        // DOM Elements
+        const loginSection = document.getElementById('loginSection');
+        const adminPanel = document.getElementById('adminPanel');
+        const loginForm = document.getElementById('loginForm');
+        const loginMessage = document.getElementById('loginMessage');
+        const statusMessage = document.getElementById('statusMessage');
+        const userInfo = document.getElementById('userInfo');
+        const userName = document.getElementById('userName');
+        const userRole = document.getElementById('userRole');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            if (authToken) {
+                checkAuthAndLoadData();
+            }
+        });
+
+        // Login form handler
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(loginForm);
+            const credentials = {
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+
+            try {
+                showMessage(loginMessage, 'Logging in...', 'info');
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(credentials)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', authToken);
+                    
+                    if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+                        showMessage(loginMessage, 'Login successful!', 'success');
+                        setTimeout(() => {
+                            loginSection.classList.add('hidden');
+                            adminPanel.classList.remove('hidden');
+                            loadAdminData();
+                        }, 1000);
+                    } else {
+                        showMessage(loginMessage, 'Access denied. Admin or staff access required.', 'error');
+                    }
+                } else {
+                    showMessage(loginMessage, data.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage(loginMessage, 'Connection error. Please make sure the server is running.', 'error');
+                console.error('Login error:', error);
+            }
+        });
+
+        // Logout handler
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            authToken = null;
+            currentUser = null;
+            loginSection.classList.remove('hidden');
+            adminPanel.classList.add('hidden');
+            loginForm.reset();
+            hideMessage(loginMessage);
+        });
+
+        // Check authentication and load data
+        async function checkAuthAndLoadData() {
+            try {
+                const response = await fetch(`${API_BASE}/users/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    currentUser = await response.json();
+                    if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+                        loginSection.classList.add('hidden');
+                        adminPanel.classList.remove('hidden');
+                        loadAdminData();
+                    } else {
+                        showMessage(loginMessage, 'Access denied. Admin or staff access required.', 'error');
+                        localStorage.removeItem('authToken');
+                        authToken = null;
+                    }
+                } else {
+                    localStorage.removeItem('authToken');
+                    authToken = null;
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                localStorage.removeItem('authToken');
+                authToken = null;
+            }
+        }
+
+        // Load admin data
+        async function loadAdminData() {
+            updateUserInfo();
+            await Promise.all([
+                loadAppointmentTypes(),
+                loadStaff(),
+                loadTimeSlots()
+            ]);
+            setupFormHandlers();
+        }
+
+        // Update user info display
+        function updateUserInfo() {
+            userName.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
+            userRole.textContent = `(${currentUser.role})`;
+        }
+
+        // Load appointment types
+        async function loadAppointmentTypes() {
+            try {
+                const response = await apiCall('/timeslots/appointment-types');
+                appointmentTypes = response;
+                displayAppointmentTypes();
+                populateAppointmentTypeSelects();
+            } catch (error) {
+                document.getElementById('appointmentTypes').innerHTML = '<p style="color: #e53e3e;">Failed to load appointment types</p>';
+            }
+        }
+
+        // Load staff
+        async function loadStaff() {
+            try {
+                const response = await apiCall('/timeslots/staff');
+                staff = response;
+                displayStaff();
+                populateStaffSelects();
+            } catch (error) {
+                document.getElementById('staffList').innerHTML = '<p style="color: #e53e3e;">Failed to load staff</p>';
+            }
+        }
+
+        // Load time slots
+        async function loadTimeSlots() {
+            try {
+                const response = await apiCall('/timeslots');
+                timeSlots = response;
+                displayTimeSlots();
+            } catch (error) {
+                document.getElementById('timeSlotsList').innerHTML = '<p style="color: #e53e3e;">Failed to load time slots</p>';
+            }
+        }
+
+        // API call helper
+        async function apiCall(endpoint, options = {}) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                let errorMessage = error.message || error.error || `HTTP ${response.status}`;
+                
+                // Provide user-friendly messages for common errors
+                if (response.status === 409) {
+                    errorMessage = 'Time slot conflicts with existing schedule';
+                } else if (response.status === 401) {
+                    errorMessage = 'Authentication failed. Please login again.';
+                } else if (response.status === 403) {
+                    errorMessage = 'Access denied. You do not have permission for this action.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Requested resource not found.';
+                } else if (response.status >= 500) {
+                    errorMessage = 'Server error. Please try again later.';
+                }
+                
+                throw new Error(errorMessage);
+            }
+
+            return response.json();
+        }
+
+        // Display functions
+        function displayAppointmentTypes() {
+            const container = document.getElementById('appointmentTypes');
+            if (appointmentTypes.length === 0) {
+                container.innerHTML = '<p>No appointment types found</p>';
+                return;
+            }
+
+            container.innerHTML = appointmentTypes.map(type => `
+                <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; border-left: 3px solid ${type.color};">
+                    <strong>${type.name}</strong><br>
+                    <small>${type.duration_minutes} minutes - ${type.description}</small>
+                </div>
+            `).join('');
+        }
+
+        function displayStaff() {
+            const container = document.getElementById('staffList');
+            if (staff.length === 0) {
+                container.innerHTML = '<p>No staff members found</p>';
+                return;
+            }
+
+            container.innerHTML = staff.map(member => `
+                <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">
+                    <strong>${member.first_name} ${member.last_name}</strong><br>
+                    <small>${member.department || 'N/A'} - ${member.specialization || 'General'}</small>
+                </div>
+            `).join('');
+        }
+
+        function displayTimeSlots() {
+            const container = document.getElementById('timeSlotsList');
+            const filter = document.getElementById('slotStaffFilter').value;
+            
+            let filteredSlots = timeSlots;
+            if (filter) {
+                filteredSlots = timeSlots.filter(slot => slot.staff_id === filter);
+            }
+
+            if (filteredSlots.length === 0) {
+                container.innerHTML = '<p>No time slots found</p>';
+                return;
+            }
+
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            
+            container.innerHTML = filteredSlots.map(slot => `
+                <div class="slot-item">
+                    <div class="slot-info">
+                        <strong>${slot.staff_name}</strong><br>
+                        <small>${days[slot.day_of_week]} ${slot.start_time}-${slot.end_time}</small><br>
+                        <small>${slot.appointment_type_name} (${slot.recurring ? 'Recurring' : 'One-time'})</small>
+                    </div>
+                    <div class="slot-actions">
+                        <button class="btn btn-small btn-danger" onclick="deleteTimeSlot('${slot.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Populate select dropdowns
+        function populateAppointmentTypeSelects() {
+            const selects = [
+                document.getElementById('appointmentTypeSelect'),
+                document.getElementById('bulkAppointmentTypeSelect')
+            ];
+
+            selects.forEach(select => {
+                select.innerHTML = '<option value="">Select appointment type...</option>' +
+                    appointmentTypes.map(type => 
+                        `<option value="${type.id}">${type.name} (${type.duration_minutes} min)</option>`
+                    ).join('');
+            });
+        }
+
+        function populateStaffSelects() {
+            const selects = [
+                document.getElementById('staffSelect'),
+                document.getElementById('bulkStaffSelect'),
+                document.getElementById('slotStaffFilter')
+            ];
+
+            selects.forEach((select, index) => {
+                const defaultOption = index === 2 ? 
+                    '<option value="">All staff members</option>' : 
+                    '<option value="">Select staff member...</option>';
+                
+                select.innerHTML = defaultOption +
+                    staff.map(member => 
+                        `<option value="${member.id}">${member.first_name} ${member.last_name} - ${member.department || 'N/A'}</option>`
+                    ).join('');
+            });
+        }
+
+        // Setup form handlers
+        function setupFormHandlers() {
+            // Add slot form
+            document.getElementById('addSlotForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const slotData = {
+                    staff_id: formData.get('staff_id'),
+                    appointment_type_id: formData.get('appointment_type_id'),
+                    start_time: formData.get('start_time'),
+                    end_time: formData.get('end_time'),
+                    day_of_week: parseInt(formData.get('day_of_week')),
+                    is_recurring: formData.get('is_recurring') === 'on'
+                };
+
+                try {
+                    await apiCall('/timeslots', {
+                        method: 'POST',
+                        body: JSON.stringify(slotData)
+                    });
+                    
+                    showMessage(statusMessage, 'Time slot added successfully!', 'success');
+                    e.target.reset();
+                    loadTimeSlots();
+                } catch (error) {
+                    let errorMessage = `Failed to add time slot: ${error.message}`;
+                    
+                    // Check if it's a conflict error (409)
+                    if (error.message.includes('overlaps') || error.message.includes('conflict')) {
+                        errorMessage = '⚠️ Time slot conflict detected!\n\nThis time overlaps with an existing appointment slot. Please:\n• Choose a different time\n• Check the "Existing Time Slots" section below\n• Filter by the staff member to see their current schedule';
+                    }
+                    
+                    showMessage(statusMessage, errorMessage, 'error');
+                }
+            });
+
+            // Weekly schedule form
+            document.getElementById('weeklyScheduleForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const selectedDays = Array.from(e.target.querySelectorAll('input[name="days"]:checked'))
+                    .map(input => parseInt(input.value));
+
+                if (selectedDays.length === 0) {
+                    showMessage(statusMessage, 'Please select at least one day', 'error');
+                    return;
+                }
+
+                const scheduleData = {
+                    staff_id: formData.get('staff_id'),
+                    appointment_type_id: formData.get('appointment_type_id'),
+                    start_time: formData.get('start_time'),
+                    end_time: formData.get('end_time'),
+                    days: selectedDays
+                };
+
+                try {
+                    const result = await apiCall('/timeslots/weekly-schedule', {
+                        method: 'POST',
+                        body: JSON.stringify(scheduleData)
+                    });
+                    
+                    showMessage(statusMessage, `Weekly schedule created! Added ${result.created} time slots.`, 'success');
+                    e.target.reset();
+                    // Reset checkboxes to default (Mon-Fri)
+                    ['day1', 'day2', 'day3', 'day4', 'day5'].forEach(id => 
+                        document.getElementById(id).checked = true
+                    );
+                    ['day6', 'day0'].forEach(id => 
+                        document.getElementById(id).checked = false
+                    );
+                    loadTimeSlots();
+                } catch (error) {
+                    showMessage(statusMessage, `Failed to create weekly schedule: ${error.message}`, 'error');
+                }
+            });
+
+            // Filter change
+            document.getElementById('slotStaffFilter').addEventListener('change', displayTimeSlots);
+        }
+
+        // Delete time slot
+        async function deleteTimeSlot(slotId) {
+            if (!confirm('Are you sure you want to delete this time slot?')) {
+                return;
+            }
+
+            try {
+                await apiCall(`/timeslots/${slotId}`, { method: 'DELETE' });
+                showMessage(statusMessage, 'Time slot deleted successfully!', 'success');
+                loadTimeSlots();
+            } catch (error) {
+                showMessage(statusMessage, `Failed to delete time slot: ${error.message}`, 'error');
+            }
+        }
+
+        // Message helpers
+        function showMessage(element, message, type) {
+            element.textContent = message;
+            element.className = `status-message status-${type}`;
+            element.classList.remove('hidden');
+            
+            if (type === 'success') {
+                setTimeout(() => hideMessage(element), 3000);
+            }
+        }
+
+        function hideMessage(element) {
+            element.classList.add('hidden');
+        }
+
+        // Make deleteTimeSlot available globally
+        window.deleteTimeSlot = deleteTimeSlot;
+    </script>
+</body>
+</html>
