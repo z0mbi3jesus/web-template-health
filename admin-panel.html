@@ -477,15 +477,23 @@
         // Check authentication and load data
         async function checkAuthAndLoadData() {
             try {
-                const response = await fetch(`${API_BASE}/users/profile`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    currentUser = await response.json();
-                    if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+                // Check if user is already authenticated from main site
+                const storedToken = localStorage.getItem('authToken');
+                const storedRole = localStorage.getItem('userRole');
+                const storedEmail = localStorage.getItem('userEmail');
+                const storedName = localStorage.getItem('userName');
+                
+                if (storedToken && storedRole) {
+                    authToken = storedToken;
+                    
+                    // Check if user has admin or staff role
+                    if (storedRole === 'admin' || storedRole === 'staff') {
+                        currentUser = {
+                            email: storedEmail,
+                            name: storedName,
+                            role: storedRole
+                        };
+                        
                         loginSection.classList.add('hidden');
                         adminPanel.classList.remove('hidden');
                         loadAdminData();
@@ -495,8 +503,8 @@
                         authToken = null;
                     }
                 } else {
-                    localStorage.removeItem('authToken');
-                    authToken = null;
+                    // No auth token, show login
+                    console.log('No authentication found, showing login');
                 }
             } catch (error) {
                 console.error('Auth check error:', error);

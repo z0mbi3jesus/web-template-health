@@ -1,12 +1,21 @@
-const { query, getClient } = require('../config/database');
+const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
+require('dotenv').config();
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('❌ Missing Supabase credentials in .env file');
+  console.error('   SUPABASE_URL:', supabaseUrl ? '✓' : '✗');
+  console.error('   SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? '✓' : '✗');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function seedDatabase() {
-  console.log('🌱 Starting database seeding...');
-
-  try {
-    const client = await getClient();
-    await client.query('BEGIN');
+  console.log('🌱 Starting database seeding with Supabase...');
 
     // 1. Create appointment types
     console.log('📋 Creating appointment types...');

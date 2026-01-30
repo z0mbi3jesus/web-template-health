@@ -3,8 +3,8 @@
 
 // Initialize Supabase client for frontend
 const SUPABASE_CONFIG = {
-    url: 'https://your-project-id.supabase.co', // Replace with your Supabase URL
-    anonKey: 'your-anon-key-here' // Replace with your anon key
+    url: 'https://dwyjiadukbhfpoqkupeq.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3eWppYWR1a2JoZnBvcWt1cGVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MzI2ODUsImV4cCI6MjA4NTEwODY4NX0.pS9z3AdcI0TAUgWLFg5pbgEtM_IN2Wr4dzErSZnaqhw'
 };
 
 // Create Supabase client instance
@@ -17,6 +17,8 @@ let supabaseClient;
             SUPABASE_CONFIG.url,
             SUPABASE_CONFIG.anonKey
         );
+        // Attach to window for global access
+        window.supabaseClient = supabaseClient;
         console.log('✅ Supabase client initialized');
     } else {
         console.warn('⚠️ Supabase library not loaded. Please include the CDN script.');

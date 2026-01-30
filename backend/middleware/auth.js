@@ -1,7 +1,13 @@
 const jwt = require('jsonwebtoken');
-const { query } = require('../config/database');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
 
-// Protect routes - require valid JWT token
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Protect routes - require valid JWT token (Supabase or local)
 const protect = async (req, res, next) => {
   try {
     let token;
@@ -24,45 +30,59 @@ const protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Try to verify as Supabase JWT first
+      const { data: { user }, error: supabaseError } = await supabase.auth.getUser(token);
+      
+      if (supabaseError || !user) {
+        // If not a valid Supabase token, try local JWT verification as fallback
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = { id: decoded.id, email: decoded.email, role: decoded.role };
+      } else {
+        // Get user profile from Supabase users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, email, name, role, is_active')
+          .eq('id', user.id)
+          .single();
 
-      // Get user from database
-      const result = await query(
-        'SELECT id, email, first_name, last_name, role, is_active FROM users WHERE id = $1',
-        [decoded.id]
-      );
+        if (userError || !userData) {
+          return res.status(401).json({
+            success: false,
+            error: 'User profile not found'
+          });
+        }
 
-      if (result.rows.length === 0) {
-        return res.status(401).json({
-          success: false,
-          error: 'User not found'
-        });
+        // Check if user is active
+        if (!userData.is_active) {
+          return res.status(401).json({
+            success: false,
+            error: 'User account is deactivated'
+          });
+        }
+
+        // Attach user to request
+        req.user = {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          role: userData.role
+        };
       }
 
-      const user = result.rows[0];
-
-      // Check if user is active
-      if (!user.is_active) {
-        return res.status(401).json({
-          success: false,
-          error: 'User account is deactivated'
-        });
-      }
-
-      // Add user to request object
-      req.user = user;
       next();
-
     } catch (error) {
       return res.status(401).json({
         success: false,
-        error: 'Not authorized to access this route'
+        error: 'Token is not valid',
+        details: error.message
       });
     }
-
   } catch (error) {
-    next(error);
+    return res.status(401).json({
+      success: false,
+      error: 'Authorization failed',
+      details: error.message
+    });
   }
 };
 

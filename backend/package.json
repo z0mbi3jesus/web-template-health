@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "db:migrate": "node database/migrate.js",
-    "db:seed": "node database/seed.js"
+    "db:seed": "node database/seed-supabase.js"
   },
   "keywords": [
     "healthcare",

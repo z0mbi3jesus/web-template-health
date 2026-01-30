@@ -7,12 +7,18 @@ const PORT = 3000;
 // Serve static files from the root directory
 app.use(express.static(path.join(__dirname)));
 
-// Serve the admin panel
+// Serve the main website
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Serve the admin panel
+app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin-panel.html'));
 });
 
 app.listen(PORT, () => {
     console.log(`🌐 Frontend server running at http://localhost:${PORT}`);
-    console.log('📱 Open http://localhost:3000 to access the admin panel');
+    console.log('📱 Main site: http://localhost:3000');
+    console.log('🔧 Admin panel: http://localhost:3000/admin');
 });

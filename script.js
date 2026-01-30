@@ -592,28 +592,7 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Google Analytics or other tracking (placeholder)
-function trackEvent(category, action, label) {
-    // Replace with your analytics tracking code
-    console.log('Event tracked:', { category, action, label });
-    
-    // Example for Google Analytics 4
-    // gtag('event', action, {
-    //     event_category: category,
-    //     event_label: label
-    // });
-}
 
-// Track important user interactions
-document.addEventListener('click', function(e) {
-    if (e.target.matches('.btn-primary')) {
-        trackEvent('User Interaction', 'CTA Click', e.target.textContent);
-    }
-    
-    if (e.target.matches('.nav-link')) {
-        trackEvent('Navigation', 'Menu Click', e.target.textContent);
-    }
-});
 
 // Cookie Consent Management
 function initCookieConsent() {
@@ -718,10 +697,6 @@ function getCookie(name) {
 function saveCookiePreferences(preferences) {
     setCookie('cookieConsent', JSON.stringify(preferences), 365);
     applyCookiePreferences(preferences);
-    
-    // Track consent choices
-    trackEvent('Cookie Consent', 'Preferences Saved', 
-        `Analytics: ${preferences.analytics}, Marketing: ${preferences.marketing}`);
 }
 
 function applyCookiePreferences(preferences = null) {
@@ -793,7 +768,6 @@ function initModals() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             showModal(signinModal);
-            trackEvent('User Interaction', 'Modal Open', 'Sign In');
         });
     });
 
@@ -802,7 +776,6 @@ function initModals() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             showModal(signupModal);
-            trackEvent('User Interaction', 'Modal Open', 'Sign Up');
         });
     });
 
@@ -816,7 +789,6 @@ function initModals() {
             e.preventDefault();
             hideModal(signinModal);
             showModal(signupModal);
-            trackEvent('User Interaction', 'Modal Switch', 'Sign In to Sign Up');
         });
     }
 
@@ -825,7 +797,6 @@ function initModals() {
             e.preventDefault();
             hideModal(signupModal);
             showModal(signinModal);
-            trackEvent('User Interaction', 'Modal Switch', 'Sign Up to Sign In');
         });
     }
 
@@ -943,30 +914,66 @@ async function handleSignin(form) {
         const authResult = await SupabaseAuth.signIn(credentials.email, credentials.password);
         
         if (authResult.user) {
-            // Get user profile from backend
-            const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
+            // Store the Supabase JWT for backend API calls
+            localStorage.setItem('authToken', authResult.session.access_token);
+            localStorage.setItem('userId', authResult.user.id);
+            localStorage.setItem('userEmail', authResult.user.email);
+            
+            let userRole = 'client'; // Default role
+            let userName = authResult.user.email;
+            
+            // Try to fetch user profile from Supabase users table
+            try {
+                const { data: userData, error: userError } = await window.supabaseClient
+                    .from('users')
+                    .select('id, email, name, role')
+                    .eq('id', authResult.user.id)
+                    .single();
+                
+                console.log('User data fetch result:', { userData, userError });
+                
+                if (userData && !userError) {
+                    userRole = userData.role || 'client';
+                    userName = userData.name || userData.email;
+                    console.log('✅ Fetched role from database:', userRole);
+                } else {
+                    console.log('⚠️ Could not fetch role, using default:', userError);
+                }
+            } catch (error) {
+                console.log('Note: Could not fetch user profile, using defaults', error);
+                // Continue with default role
+            }
+            
+            console.log('Final user role:', userRole);
             
             // Store user info
-            localStorage.setItem('authToken', authResult.session.access_token);
-            localStorage.setItem('userRole', userProfile.user.role);
-            localStorage.setItem('userName', userProfile.user.name);
-            localStorage.setItem('userId', userProfile.user.id);
-            
-            // Track successful signin
-            trackEvent('User Authentication', 'Sign In Success', userProfile.user.role);
+            localStorage.setItem('userRole', userRole);
+            localStorage.setItem('userName', userName);
             
             // Hide modal
             hideModal(document.getElementById('signinModal'));
             
-            // Redirect based on role or show success
-            if (userProfile.user.role === 'admin' || userProfile.user.role === 'staff') {
+            // Create user object for UI
+            const userData = {
+                id: authResult.user.id,
+                email: authResult.user.email,
+                name: userName,
+                role: userRole
+            };
+            
+            // Redirect based on role
+            console.log('Checking redirect... Role is:', userRole);
+            if (userRole === 'admin' || userRole === 'staff') {
+                console.log('🎯 Admin/Staff detected - redirecting to admin panel');
                 showSuccessMessage('Welcome back! Redirecting to admin panel...');
                 setTimeout(() => {
+                    console.log('Redirecting now...');
                     window.location.href = 'admin-panel.html';
-                }, 2000);
+                }, 1500);
             } else {
+                console.log('Regular user - staying on main site');
                 showSuccessMessage('Welcome back! You are now signed in.');
-                updateUIForAuthenticatedUser(userProfile.user);
+                updateUIForAuthenticatedUser(userData);
             }
         }
     } catch (error) {
@@ -982,7 +989,6 @@ async function handleSignin(form) {
         }
         
         showFormError(form, 'general', errorMessage);
-        trackEvent('User Authentication', 'Sign In Failed', error.message);
     } finally {
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
@@ -1025,9 +1031,6 @@ async function handleSignup(form) {
                 phone: userData.phone
             })
         });
-
-        // Track successful signup
-        trackEvent('User Authentication', 'Sign Up Success', 'Client');
         
         // Show success message
         showSuccessMessage('Account created successfully! Please check your email to verify your account, then sign in.');
@@ -1057,7 +1060,6 @@ async function handleSignup(form) {
         }
         
         showFormError(form, 'general', errorMessage);
-        trackEvent('User Authentication', 'Sign Up Failed', error.message);
     } finally {
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
@@ -1299,7 +1301,6 @@ async function handleSignOut() {
             window.location.reload();
         }, 1500);
         
-        trackEvent('User Authentication', 'Sign Out Success', 'Manual');
     } catch (error) {
         console.error('Sign out error:', error);
         showSuccessMessage('You have been signed out.');
