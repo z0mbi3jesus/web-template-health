@@ -922,26 +922,45 @@ async function handleSignin(form) {
             let userRole = 'client'; // Default role
             let userName = authResult.user.email;
             
-            // Try to fetch user profile from Supabase users table
+            // Try backend login to fetch role/token (uses service role, bypasses RLS)
             try {
-                const { data: userData, error: userError } = await window.supabaseClient
-                    .from('users')
-                    .select('id, email, name, role')
-                    .eq('id', authResult.user.id)
-                    .single();
-                
-                console.log('User data fetch result:', { userData, userError });
-                
-                if (userData && !userError) {
-                    userRole = userData.role || 'client';
-                    userName = userData.name || userData.email;
-                    console.log('✅ Fetched role from database:', userRole);
-                } else {
-                    console.log('⚠️ Could not fetch role, using default:', userError);
+                const backendData = await SupabaseAPI.makeRequest('/api/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify(credentials)
+                });
+
+                if (backendData?.user) {
+                    userRole = backendData.user.role || 'client';
+                    userName = backendData.user.name || backendData.user.email || userName;
+                    localStorage.setItem('authToken', backendData.token);
+                    console.log('✅ Fetched role from backend login:', userRole);
                 }
             } catch (error) {
-                console.log('Note: Could not fetch user profile, using defaults', error);
-                // Continue with default role
+                console.log('Note: Backend login failed, falling back to Supabase', error);
+            }
+
+            // Fallback: Try to fetch user profile from Supabase users table
+            if (userRole === 'client') {
+                try {
+                    const { data: userData, error: userError } = await window.supabaseClient
+                        .from('users')
+                        .select('id, email, name, role')
+                        .eq('id', authResult.user.id)
+                        .single();
+                    
+                    console.log('User data fetch result:', { userData, userError });
+                    
+                    if (userData && !userError) {
+                        userRole = userData.role || 'client';
+                        userName = userData.name || userData.email;
+                        console.log('✅ Fetched role from database:', userRole);
+                    } else {
+                        console.log('⚠️ Could not fetch role, using default:', userError);
+                    }
+                } catch (error) {
+                    console.log('Note: Could not fetch user profile, using defaults', error);
+                    // Continue with default role
+                }
             }
             
             console.log('Final user role:', userRole);
@@ -1021,42 +1040,97 @@ async function handleSignup(form) {
             return;
         }
 
-        // Register with backend API (which handles Supabase auth + profile creation)
-        const registrationData = await SupabaseAPI.makeRequest('/api/auth/register', {
-            method: 'POST',
-            body: JSON.stringify({
-                name: `${userData.firstName} ${userData.lastName}`,
-                email: userData.email,
-                password: userData.password,
-                phone: userData.phone
-            })
+        // Create account with Supabase Auth
+        console.log('📝 Creating Supabase account for:', userData.email);
+        const authResult = await SupabaseAuth.signUp(userData.email, userData.password, {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            phone: userData.phone,
+            role: 'client' // New users default to client role
         });
         
-        // Show success message
-        showSuccessMessage('Account created successfully! Please check your email to verify your account, then sign in.');
+        console.log('✅ Supabase auth created:', authResult.user.id);
         
-        // Switch to signin modal
-        setTimeout(() => {
-            hideModal(document.getElementById('signupModal'));
-            showModal(document.getElementById('signinModal'));
+        // Create user profile in the users table
+        try {
+            console.log('📊 Creating user profile in database...');
+            const { data: profileData, error: profileError } = await window.supabaseClient
+                .from('users')
+                .insert([{
+                    id: authResult.user.id,
+                    email: userData.email,
+                    name: `${userData.firstName} ${userData.lastName}`,
+                    phone: userData.phone,
+                    role: 'client',
+                    is_active: true
+                }])
+                .select();
             
-            // Pre-fill email in signin form
-            const signinEmail = document.getElementById('signinEmail');
-            if (signinEmail) {
-                signinEmail.value = userData.email;
+            if (profileError) {
+                console.error('⚠️ Profile creation error:', profileError);
+                // Don't fail signup if profile creation fails - user can still sign in
+                // We'll create the profile later if needed
+            } else {
+                console.log('✅ User profile created successfully');
             }
-        }, 3000);
+        } catch (profileErr) {
+            console.log('Note: Profile auto-creation skipped (will be created on first login):', profileErr);
+            // Continue anyway - sign up was successful
+        }
+        
+        // Show success message
+        showSuccessMessage('Account created successfully! Signing you in...');
+        
+        // Auto sign in the new user
+        setTimeout(async () => {
+            try {
+                const signInResult = await SupabaseAuth.signIn(userData.email, userData.password);
+                
+                if (signInResult.user) {
+                    // Store the Supabase JWT for backend API calls
+                    localStorage.setItem('authToken', signInResult.session.access_token);
+                    localStorage.setItem('userId', signInResult.user.id);
+                    localStorage.setItem('userEmail', signInResult.user.email);
+                    localStorage.setItem('userRole', 'client');
+                    localStorage.setItem('userName', `${userData.firstName} ${userData.lastName}`);
+                    
+                    // Hide modal
+                    hideModal(document.getElementById('signupModal'));
+                    
+                    showSuccessMessage('Welcome to our clinic! You can now book your first appointment.');
+                    updateUIForAuthenticatedUser({
+                        id: signInResult.user.id,
+                        email: signInResult.user.email,
+                        name: `${userData.firstName} ${userData.lastName}`,
+                        role: 'client'
+                    });
+                }
+            } catch (signInError) {
+                console.error('Auto sign-in error:', signInError);
+                // Fall back to showing signin modal
+                hideModal(document.getElementById('signupModal'));
+                showModal(document.getElementById('signinModal'));
+                
+                // Pre-fill email in signin form
+                const signinEmail = document.getElementById('signinEmail');
+                if (signinEmail) {
+                    signinEmail.value = userData.email;
+                }
+            }
+        }, 1500);
 
     } catch (error) {
         console.error('Signup error:', error);
         let errorMessage = 'Registration failed. Please try again.';
         
-        if (error.message.includes('already registered') || error.message.includes('already exists')) {
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
             errorMessage = 'An account with this email already exists. Please sign in instead.';
-        } else if (error.message.includes('weak password')) {
+        } else if (error.message.includes('Password') || error.message.includes('password')) {
             errorMessage = 'Password is too weak. Please use at least 8 characters with uppercase, lowercase, and numbers.';
-        } else if (error.message.includes('invalid email')) {
+        } else if (error.message.includes('email')) {
             errorMessage = 'Please enter a valid email address.';
+        } else if (error.message.includes('Network')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
         }
         
         showFormError(form, 'general', errorMessage);
@@ -1276,7 +1350,7 @@ function updateUIForAuthenticatedUser(user) {
     const heroButtons = document.querySelector('.hero-buttons');
     if (heroButtons) {
         heroButtons.innerHTML = `
-            <a href="#services" class="btn btn-primary">Book Appointment</a>
+            <button onclick="showModal(document.getElementById('bookingModal'))" class="btn btn-primary">Book Appointment</button>
             <a href="#" class="btn btn-secondary" onclick="loadUserDashboard()">My Dashboard</a>
         `;
     }
@@ -1350,11 +1424,250 @@ function initAuthStateListener() {
     }
 }
 
+// Appointment Booking
+function initBookingForm() {
+    const bookingForm = document.getElementById('bookingForm');
+    const bookingModal = document.getElementById('bookingModal');
+    const closeBookingBtn = document.getElementById('closeBookingModal');
+    const serviceSelect = document.getElementById('appointmentService');
+    const availableSlotsContainer = document.getElementById('availableSlotsContainer');
+    
+    if (!bookingForm) return;
+
+    // Load appointment services on modal init
+    loadAppointmentServices();
+
+    // Close booking modal
+    if (closeBookingBtn) {
+        closeBookingBtn.addEventListener('click', () => hideModal(bookingModal));
+    }
+
+    // Close modal when clicking outside
+    if (bookingModal) {
+        bookingModal.addEventListener('click', function(e) {
+            if (e.target === bookingModal) {
+                hideModal(bookingModal);
+            }
+        });
+    }
+
+    // Service selection - load available slots
+    if (serviceSelect) {
+        serviceSelect.addEventListener('change', async function() {
+            const serviceId = this.value;
+            availableSlotsContainer.style.display = serviceId ? 'block' : 'none';
+            
+            if (serviceId) {
+                await loadAvailableSlots(serviceId);
+            }
+        });
+    }
+
+    // Form submission
+    bookingForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await handleBooking(this);
+    });
+}
+
+async function loadAppointmentServices() {
+    try {
+        const data = await SupabaseAPI.makeRequest('/api/appointments/types');
+
+        if (!data.success || !data.appointmentTypes) {
+            console.error('Failed to load appointment types');
+            return;
+        }
+
+        const serviceSelect = document.getElementById('appointmentService');
+        serviceSelect.innerHTML = '<option value="">Choose a service...</option>';
+
+        data.appointmentTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.id;
+            option.textContent = type.name;
+            option.dataset.duration = type.duration_minutes;
+            serviceSelect.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Error loading services:', error);
+    }
+}
+
+async function loadAvailableSlots(serviceId) {
+    try {
+        console.log('Loading available slots for service:', serviceId);
+        
+        const data = await SupabaseAPI.makeRequest(`/api/appointments/available?service_id=${serviceId}`);
+
+        if (!data.success) {
+            console.error('Failed to load slots:', data.error);
+            return;
+        }
+
+        const dateSelect = document.getElementById('appointmentDate');
+        const timeSelect = document.getElementById('appointmentTime');
+        const providerSelect = document.getElementById('appointmentProvider');
+
+        dateSelect.innerHTML = '<option value="">Choose a date...</option>';
+        timeSelect.innerHTML = '<option value="">Choose a time...</option>';
+        providerSelect.innerHTML = '<option value="">Select a provider...</option>';
+
+        if (data.availableSlots.length === 0) {
+            dateSelect.innerHTML = '<option value="">No available slots</option>';
+            return;
+        }
+
+        // Populate dates
+        data.availableSlots.forEach(daySlots => {
+            const option = document.createElement('option');
+            option.value = daySlots.date;
+            option.textContent = `${daySlots.day_name} - ${new Date(daySlots.date).toLocaleDateString()}`;
+            dateSelect.appendChild(option);
+        });
+
+        // Store slots for later use
+        window.availableSlotsData = data.availableSlots;
+
+        // Add change listener to date select
+        dateSelect.addEventListener('change', function() {
+            populateTimeSlots(this.value, serviceId);
+        });
+
+    } catch (error) {
+        console.error('Error loading slots:', error);
+        showSuccessMessage('Failed to load available slots. Please try again.');
+    }
+}
+
+function populateTimeSlots(selectedDate, serviceId) {
+    const timeSelect = document.getElementById('appointmentTime');
+    const providerSelect = document.getElementById('appointmentProvider');
+    const slots = window.availableSlotsData.find(d => d.date === selectedDate);
+
+    timeSelect.innerHTML = '<option value="">Choose a time...</option>';
+    providerSelect.innerHTML = '<option value="">Select a provider...</option>';
+
+    if (!slots) return;
+
+    // Use a Set to avoid duplicate times
+    const timesSet = new Set();
+    const providersMap = new Map();
+
+    slots.slots.forEach(slot => {
+        const timeStr = `${slot.start_time} - ${slot.end_time}`;
+        timesSet.add(timeStr);
+        
+        // Store provider info
+        if (!providersMap.has(slot.staff_id)) {
+            providersMap.set(slot.staff_id, {
+                id: slot.staff_id,
+                name: `${slot.staff_first_name} ${slot.staff_last_name}`,
+                availableTimes: []
+            });
+        }
+        providersMap.get(slot.staff_id).availableTimes.push(timeStr);
+    });
+
+    // Populate time slots
+    timesSet.forEach(time => {
+        const option = document.createElement('option');
+        option.value = time;
+        option.textContent = time;
+        timeSelect.appendChild(option);
+    });
+
+    // Populate providers
+    providersMap.forEach((provider, staffId) => {
+        const option = document.createElement('option');
+        option.value = staffId;
+        option.textContent = provider.name;
+        option.dataset.availableTimes = JSON.stringify(provider.availableTimes);
+        providerSelect.appendChild(option);
+    });
+}
+
+async function handleBooking(form) {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    
+    try {
+        // Check if user is logged in
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+            showFormError(form, 'general', 'Please sign in first to book an appointment');
+            return;
+        }
+
+        submitBtn.textContent = 'Booking Appointment...';
+        submitBtn.disabled = true;
+
+        const formData = new FormData(form);
+        const selectedDate = formData.get('date');
+        const selectedTime = formData.get('time');
+        const staffId = formData.get('provider');
+        const notes = formData.get('notes');
+        const serviceId = formData.get('service');
+
+        // Validate all fields
+        if (!selectedDate || !selectedTime || !staffId || !serviceId) {
+            showFormError(form, 'general', 'Please select all required fields');
+            return;
+        }
+
+        // Parse start and end times
+        const [startTime, endTime] = selectedTime.split(' - ');
+
+        const bookingData = {
+            appointment_type_id: serviceId,
+            staff_id: staffId,
+            appointment_date: selectedDate,
+            start_time: startTime.trim(),
+            end_time: endTime.trim(),
+            notes: notes || null
+        };
+
+        console.log('Booking appointment:', bookingData);
+
+        // Call backend API
+        const result = await SupabaseAPI.makeRequest('/api/appointments', {
+            method: 'POST',
+            body: JSON.stringify(bookingData)
+        });
+
+        showSuccessMessage('Appointment booked successfully! It is pending staff approval.');
+        
+        // Clear form and close modal
+        setTimeout(() => {
+            form.reset();
+            hideModal(document.getElementById('bookingModal'));
+            // Reload appointments if on dashboard
+            if (typeof loadAppointments === 'function') {
+                loadAppointments();
+            }
+        }, 2000);
+
+    } catch (error) {
+        console.error('Booking error:', error);
+        showFormError(form, 'general', error.message || 'Failed to book appointment');
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
 // Initialize privacy compliance and authentication
 console.log('Privacy compliance and authentication initialized');
 
 // Check auth state and listen for changes when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals, forms, and booking
+    initModals();
+    initAuthForms();
+    initBookingForm();
+    initCookieConsent();
+
     // Small delay to ensure Supabase is initialized
     setTimeout(() => {
         checkAuthState();

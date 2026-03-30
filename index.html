@@ -526,6 +526,56 @@
         </div>
     </div>
 
+    <!-- Book Appointment Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Book an Appointment</h3>
+                <span class="close" id="closeBookingModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="bookingForm">
+                    <div class="form-group">
+                        <label for="appointmentService">Select Service</label>
+                        <select id="appointmentService" name="service" required>
+                            <option value="">Loading services...</option>
+                        </select>
+                    </div>
+
+                    <div id="availableSlotsContainer" style="display:none;">
+                        <div class="form-group">
+                            <label for="appointmentDate">Select Date</label>
+                            <select id="appointmentDate" name="date" required>
+                                <option value="">Choose a date...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="appointmentTime">Select Time</label>
+                            <select id="appointmentTime" name="time" required>
+                                <option value="">Choose a time...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="appointmentProvider">Healthcare Provider</label>
+                            <select id="appointmentProvider" name="provider" required>
+                                <option value="">Select a provider...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="appointmentNotes">Notes (Optional)</label>
+                        <textarea id="appointmentNotes" name="notes" placeholder="Any additional information you'd like to share?" rows="4"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-primary btn-full">Confirm Booking</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

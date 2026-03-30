@@ -1,8 +1,31 @@
 const express = require('express');
 const { protect, authorize, isAdmin } = require('../middleware/auth');
-const { query } = require('../config/database');
+const { supabase, query } = require('../config/database');
 
 const router = express.Router();
+
+// @desc    Get all appointment types
+// @route   GET /api/appointments/types
+// @access  Public
+router.get('/types', async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('appointment_types')
+      .select('id, name, description, duration_minutes, color')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    res.status(200).json({
+      success: true,
+      count: data.length,
+      appointmentTypes: data
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // @desc    Get user's appointments
 // @route   GET /api/appointments
@@ -51,16 +74,174 @@ router.get('/', protect, async (req, res, next) => {
   }
 });
 
+// @desc    Get available appointment slots for a service
+// @route   GET /api/appointments/available
+// @access  Public
+router.get('/available', async (req, res, next) => {
+  try {
+    const { service_id, start_date, end_date } = req.query;
+
+    if (!service_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'service_id is required'
+      });
+    }
+
+    // Get available slots for the service
+    let slotsQuery = `
+      SELECT av_slots.*, 
+             u.first_name as staff_first_name,
+             u.last_name as staff_last_name,
+             at.name as appointment_type_name,
+             at.duration_minutes,
+             at.color
+      FROM available_slots av_slots
+      LEFT JOIN users u ON av_slots.staff_id = u.id
+      LEFT JOIN appointment_types at ON av_slots.appointment_type_id = at.id
+      WHERE av_slots.appointment_type_id = $1
+      AND av_slots.is_active = true
+      AND u.is_active = true
+    `;
+    
+    const queryParams = [service_id];
+    
+    const slotsResult = await query(slotsQuery, queryParams);
+    
+    if (slotsResult.rows.length === 0) {
+      return res.status(200).json({
+        success: true,
+        slots: [],
+        message: 'No available slots for this service'
+      });
+    }
+
+    // Generate future dates with available slots
+    const today = new Date();
+    const slots = [];
+    const daysToShow = 30; // Show 30 days of availability
+
+    for (let i = 0; i < daysToShow; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      const dayOfWeek = date.getDay();
+      const dateStr = date.toISOString().split('T')[0];
+
+      // Find slots for this day
+      const daySlots = slotsResult.rows.filter(slot => {
+        return (slot.is_recurring && slot.day_of_week === dayOfWeek) ||
+               (slot.specific_date === dateStr);
+      });
+
+      if (daySlots.length > 0) {
+        slots.push({
+          date: dateStr,
+          day_of_week: dayOfWeek,
+          day_name: date.toLocaleDateString('en-US', { weekday: 'long' }),
+          slots: daySlots
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      count: slots.length,
+      availableSlots: slots
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 // @desc    Create new appointment request
 // @route   POST /api/appointments
 // @access  Private
 router.post('/', protect, async (req, res, next) => {
   try {
-    // Implementation will be added later with full calendar functionality
-    res.status(200).json({
+    const { appointment_type_id, staff_id, appointment_date, start_time, end_time, notes } = req.body;
+    
+    // Validate required fields
+    if (!appointment_type_id || !appointment_date || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: appointment_type_id, appointment_date, start_time, end_time'
+      });
+    }
+
+    // Only clients can book appointments
+    if (req.user.role !== 'client') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only clients can book appointments'
+      });
+    }
+
+    // Check if appointment slot is available (no conflicts)
+    const conflictQuery = `
+      SELECT id FROM appointments
+      WHERE appointment_date = $1
+      AND start_time < $3
+      AND end_time > $2
+      AND status NOT IN ('cancelled', 'declined')
+      LIMIT 1
+    `;
+
+    const conflictResult = await query(conflictQuery, [
+      appointment_date,
+      start_time,
+      end_time
+    ]);
+
+    if (conflictResult.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'This time slot is no longer available'
+      });
+    }
+
+    // Create the appointment
+    const createQuery = `
+      INSERT INTO appointments (
+        client_id, 
+        staff_id,
+        appointment_type_id,
+        appointment_date,
+        start_time,
+        end_time,
+        client_notes,
+        status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, client_id, appointment_type_id, appointment_date, start_time, end_time, status, created_at
+    `;
+
+    const appointmentResult = await query(createQuery, [
+      req.user.id,
+      staff_id || null,
+      appointment_type_id,
+      appointment_date,
+      start_time,
+      end_time,
+      notes || null,
+      'pending'
+    ]);
+
+    const appointment = appointmentResult.rows[0];
+
+    res.status(201).json({
       success: true,
-      message: 'Create appointment endpoint - to be implemented'
+      message: 'Appointment booked successfully. It is pending staff approval.',
+      appointment: {
+        id: appointment.id,
+        appointmentDate: appointment.appointment_date,
+        startTime: appointment.start_time,
+        endTime: appointment.end_time,
+        status: appointment.status,
+        createdAt: appointment.created_at
+      }
     });
+
   } catch (error) {
     next(error);
   }

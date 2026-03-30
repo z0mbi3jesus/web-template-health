@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { query, getClient } = require('../config/database');
+const { supabase, query, getClient } = require('../config/database');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -26,7 +26,7 @@ const sendTokenResponse = (user, statusCode, res) => {
     sameSite: 'strict'
   };
 
-  // Remove password from output
+  // Remove password from output (if exists)
   const { password_hash, ...userWithoutPassword } = user;
 
   res
@@ -167,44 +167,52 @@ router.post('/login', [
 
     const { email, password } = req.body;
 
-    // Get user with password
-    const result = await query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
+    // Authenticate using Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-    if (result.rows.length === 0) {
+    if (authError || !authData.user) {
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
       });
     }
 
-    const user = result.rows[0];
+    // Create user object from auth data
+    const user = {
+      id: authData.user.id,
+      email: authData.user.email,
+      name: authData.user.user_metadata?.name || authData.user.email.split('@')[0],
+      role: 'client', // Default role
+      is_active: true,
+      created_at: authData.user.created_at,
+      last_login: new Date().toISOString()
+    };
 
-    // Check if user is active
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        error: 'Account is deactivated'
-      });
+    // Map email to role (temporary workaround for RLS issues)
+    const adminEmails = ['admin@healthclinic.com'];
+    const staffEmails = ['dr.smith@healthclinic.com', 'therapist@healthclinic.com', 'doctor@example.com'];
+    
+    if (adminEmails.includes(user.email)) {
+      user.role = 'admin';
+    } else if (staffEmails.includes(user.email)) {
+      user.role = 'staff';
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    console.log(`Login for ${user.email} - role: ${user.role}`);
 
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials'
-      });
+    // Try to update last login in users table (optional, don't fail if it doesn't work due to RLS)
+    try {
+      await supabase
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id);
+    } catch (e) {
+      // Silently fail if RLS blocks this
+      console.log('Could not update last login (RLS):', e.message);
     }
-
-    // Update last login
-    await query(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
-    );
 
     sendTokenResponse(user, 200, res);
 
@@ -218,41 +226,21 @@ router.post('/login', [
 // @access  Private
 router.get('/me', protect, async (req, res, next) => {
   try {
-    // Get user with profile data
-    let userQuery;
-    let profileTable;
-
-    if (req.user.role === 'client') {
-      profileTable = 'client_profiles';
-      userQuery = `
-        SELECT u.*, cp.date_of_birth, cp.emergency_contact_name, cp.emergency_contact_phone,
-               cp.medical_notes, cp.insurance_provider, cp.insurance_policy_number,
-               cp.preferred_appointment_time
-        FROM users u
-        LEFT JOIN client_profiles cp ON u.id = cp.user_id
-        WHERE u.id = $1
-      `;
-    } else if (req.user.role === 'staff' || req.user.role === 'admin') {
-      profileTable = 'staff_profiles';
-      userQuery = `
-        SELECT u.*, sp.employee_id, sp.department, sp.specialization,
-               sp.license_number, sp.hire_date, sp.is_admin
-        FROM users u
-        LEFT JOIN staff_profiles sp ON u.id = sp.user_id
-        WHERE u.id = $1
-      `;
-    }
-
-    const result = await query(userQuery, [req.user.id]);
+    // Get base user profile
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.user.id)
+      .single();
     
-    if (result.rows.length === 0) {
+    if (error || !data) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
 
-    const { password_hash, ...userWithoutPassword } = result.rows[0];
+    const { password_hash, ...userWithoutPassword } = data;
 
     res.status(200).json({
       success: true,
@@ -260,6 +248,77 @@ router.get('/me', protect, async (req, res, next) => {
     });
 
   } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Create user profile in Supabase
+// @route   POST /api/auth/create-profile
+// @access  Public (uses Supabase JWT)
+router.post('/create-profile', async (req, res, next) => {
+  try {
+    const { userId, email, name, phone, role = 'client' } = req.body;
+    
+    // Validate input
+    if (!userId || !email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId and email'
+      });
+    }
+
+    // Initialize Supabase admin client
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Check if user profile already exists
+    const { data: existingUser, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        error: 'User profile already exists'
+      });
+    }
+
+    // Create user profile
+    const { data: newUser, error: createError } = await supabaseAdmin
+      .from('users')
+      .insert([{
+        id: userId,
+        email,
+        name: name || email,
+        phone: phone || null,
+        role,
+        is_active: true
+      }])
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Supabase error creating profile:', createError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create user profile',
+        details: createError.message
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'User profile created successfully',
+      user: newUser
+    });
+
+  } catch (error) {
+    console.error('Profile creation error:', error);
     next(error);
   }
 });

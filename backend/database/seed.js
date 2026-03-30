@@ -1,5 +1,7 @@
+// Seed database with initial data
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
+const { pool } = require('../config/database');
 require('dotenv').config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -16,6 +18,12 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function seedDatabase() {
   console.log('🌱 Starting database seeding with Supabase...');
+
+  let client;
+
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
 
     // 1. Create appointment types
     console.log('📋 Creating appointment types...');
@@ -272,14 +280,22 @@ async function seedDatabase() {
     console.log('  Staff: dr.smith@healthclinic.com');
     console.log('  Therapist: therapist@healthclinic.com');
     console.log('  Client: client1@example.com');
-
-    client.release();
-    process.exit(0);
-
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Failed to rollback:', rollbackError);
+      }
+    }
+    console.error('Seeding failed:', error);
     process.exit(1);
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
+  process.exit(0);
 }
 
 // Run seeding if called directly
