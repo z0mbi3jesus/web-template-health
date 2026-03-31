@@ -1413,8 +1413,8 @@ async function checkAuthState() {
         token: localStorage.getItem('authToken')
     };
 
-    const hasStoredIdentity = Boolean(storedUser.email || storedUser.name || storedUser.id || storedUser.role);
-
+    // Use real stored fields (not the defaulted role) for identity check.
+    const hasStoredIdentity = Boolean(storedUser.email || storedUser.name || storedUser.id);
     const hasStoredAuth = Boolean(storedUser.token && hasStoredIdentity);
 
     const fallbackUser = {
@@ -1424,25 +1424,27 @@ async function checkAuthState() {
         role: storedUser.role
     };
 
+    // Synchronous fast-path: returning from dashboard + stored identity → restore UI
+    // immediately without waiting for any async operations that may be slow or fail.
+    if (fromDashboard && hasStoredIdentity) {
+        updateUIForAuthenticatedUser(fallbackUser);
+        return;
+    }
+
     try {
         const session = await SupabaseAuth.getCurrentSession();
         if (session?.user) {
-            // Get user profile
-            const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
-            updateUIForAuthenticatedUser(userProfile.user);
+            try {
+                const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
+                updateUIForAuthenticatedUser(userProfile.user);
+            } catch (_apiErr) {
+                // Backend unreachable — fall back to local identity
+                updateUIForAuthenticatedUser(fallbackUser);
+            }
             return;
         }
 
-        // If session is unavailable but we still have local auth context,
-        // keep the user in an authenticated UI state on the landing page.
         if (hasStoredAuth) {
-            updateUIForAuthenticatedUser(fallbackUser);
-            return;
-        }
-
-        // Returning from dashboard: preserve UI state when identity exists,
-        // even if the token is temporarily unavailable.
-        if (fromDashboard && hasStoredIdentity) {
             updateUIForAuthenticatedUser(fallbackUser);
             return;
         }
@@ -1450,11 +1452,6 @@ async function checkAuthState() {
         console.log('No active session');
 
         if (hasStoredAuth) {
-            updateUIForAuthenticatedUser(fallbackUser);
-            return;
-        }
-
-        if (fromDashboard && hasStoredIdentity) {
             updateUIForAuthenticatedUser(fallbackUser);
             return;
         }
