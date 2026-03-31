@@ -1,17 +1,26 @@
 // Frontend Supabase Configuration
 // This file should be included in your HTML before script.js
 
-// Initialize Supabase client for frontend
+// Inject these values from deployment config before loading this script.
 const SUPABASE_CONFIG = {
-    url: 'https://dwyjiadukbhfpoqkupeq.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3eWppYWR1a2JoZnBvcWt1cGVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MzI2ODUsImV4cCI6MjA4NTEwODY4NX0.pS9z3AdcI0TAUgWLFg5pbgEtM_IN2Wr4dzErSZnaqhw'
+    url: window.__APP_CONFIG__?.SUPABASE_URL,
+    anonKey: window.__APP_CONFIG__?.SUPABASE_ANON_KEY
 };
+
+const BACKEND_BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : window.__APP_CONFIG__?.BACKEND_URL;
 
 // Create Supabase client instance
 let supabaseClient;
 
 // Initialize Supabase client when script loads
 (function initSupabase() {
+    if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
+        console.error('❌ Missing frontend Supabase configuration. Set window.__APP_CONFIG__.SUPABASE_URL and SUPABASE_ANON_KEY.');
+        return;
+    }
+
     if (typeof window !== 'undefined' && window.supabase) {
         supabaseClient = window.supabase.createClient(
             SUPABASE_CONFIG.url,
@@ -120,11 +129,11 @@ const SupabaseAPI = {
             }
         };
         
-        const baseUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001' 
-            : 'https://your-backend-domain.com'; // Update with your backend URL
+        if (!BACKEND_BASE_URL) {
+            throw new Error('Missing backend configuration. Set window.__APP_CONFIG__.BACKEND_URL.');
+        }
             
-        const response = await fetch(`${baseUrl}${endpoint}`, finalOptions);
+        const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, finalOptions);
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: 'Request failed' }));

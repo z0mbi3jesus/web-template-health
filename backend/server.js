@@ -53,31 +53,40 @@ app.use(helmet({
 }));
 
 // CORS configuration
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const allowedOrigins = new Set([
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001'
+].filter(Boolean));
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // In development, be permissive with localhost
-    if (process.env.NODE_ENV !== 'production') {
-      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
-        return callback(null, true);
-      }
+    if (!origin) {
+      return isDevelopment
+        ? callback(null, true)
+        : callback(new Error('Origin header required'));
     }
-    
-    const allowedOrigins = [
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      'http://localhost:3001', // Allow backend to call itself
-      'http://127.0.0.1:3000',  // Alternative localhost
-      'http://127.0.0.1:3001',  // Alternative localhost
-    ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log(`⚠️  CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+
+    let hostname;
+    try {
+      hostname = new URL(origin).hostname;
+    } catch {
+      return callback(new Error('Invalid origin'));
     }
+
+    if (isDevelopment && (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1')) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    console.log(`⚠️  CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true, // Allow cookies to be sent
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

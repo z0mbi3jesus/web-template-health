@@ -180,25 +180,27 @@ router.post('/login', [
       });
     }
 
-    // Create user object from auth data
+    // Resolve app profile from users table
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from('users')
+      .select('id, email, name, role, is_active, created_at')
+      .eq('id', authData.user.id)
+      .maybeSingle();
+
+    const metadataRole = authData.user.app_metadata?.role || authData.user.user_metadata?.role;
+
     const user = {
       id: authData.user.id,
       email: authData.user.email,
-      name: authData.user.user_metadata?.name || authData.user.email.split('@')[0],
-      role: 'client', // Default role
-      is_active: true,
-      created_at: authData.user.created_at,
+      name: userProfile?.name || authData.user.user_metadata?.name || authData.user.email.split('@')[0],
+      role: userProfile?.role || metadataRole || 'client',
+      is_active: userProfile?.is_active ?? true,
+      created_at: userProfile?.created_at || authData.user.created_at,
       last_login: new Date().toISOString()
     };
 
-    // Map email to role (temporary workaround for RLS issues)
-    const adminEmails = ['admin@healthclinic.com'];
-    const staffEmails = ['dr.smith@healthclinic.com', 'therapist@healthclinic.com', 'doctor@example.com'];
-    
-    if (adminEmails.includes(user.email)) {
-      user.role = 'admin';
-    } else if (staffEmails.includes(user.email)) {
-      user.role = 'staff';
+    if (userProfileError) {
+      console.warn('Could not load user role from users table:', userProfileError.message);
     }
 
     console.log(`Login for ${user.email} - role: ${user.role}`);

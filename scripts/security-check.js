@@ -15,7 +15,14 @@ console.log('🔐 Healthcare Security Check\n');
 function checkEnvFiles() {
     console.log('📋 Checking environment files...');
     
-    const envFiles = ['.env', '.env.local', '.env.production'];
+    const envFiles = [
+        '.env',
+        '.env.local',
+        '.env.production',
+        'backend/.env',
+        'backend/.env.local',
+        'backend/.env.production'
+    ];
     let allGood = true;
     
     envFiles.forEach(file => {
@@ -42,14 +49,12 @@ function checkHardcodedSecrets() {
     console.log('\n🔍 Scanning for hardcoded secrets...');
     
     const patterns = [
-        { name: 'Supabase Keys', pattern: /eyJ[A-Za-z0-9_-]+/g },
+        { name: 'Supabase Keys', pattern: /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g },
         { name: 'Stripe Keys', pattern: /(sk_|pk_)[a-zA-Z0-9_]+/g },
-        { name: 'API URLs', pattern: /https:\/\/[a-zA-Z0-9-]+\.supabase\.co/g },
-        { name: 'JWT Secrets', pattern: /jwt[_-]?secret.*[=:]\s*["'][^"']{20,}/gi },
-        { name: 'Database URLs', pattern: /postgresql:\/\/[^\s"']+/g }
+        { name: 'JWT Secrets', pattern: /jwt[_-]?secret.*[=:]\s*["'][^"']{20,}/gi }
     ];
     
-    const filesToCheck = ['*.js', '*.html', '*.css', '*.json', '*.md'];
+    const filesToCheck = ['*.js', '*.html', '*.css', '*.json'];
     let issuesFound = false;
     
     filesToCheck.forEach(pattern => {

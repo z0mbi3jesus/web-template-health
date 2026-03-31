@@ -23,10 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Package lock files (choose one based on your package manager)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# Package lock files should be committed for reproducible installs and security patching
 
 # =====================================================
 # Runtime and Build Files

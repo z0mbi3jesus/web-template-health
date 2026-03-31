@@ -46,10 +46,16 @@ const protect = async (req, res, next) => {
           .single();
 
         if (userError || !userData) {
-          return res.status(401).json({
-            success: false,
-            error: 'User profile not found'
-          });
+          const fallbackRole = user.app_metadata?.role || user.user_metadata?.role || 'client';
+
+          req.user = {
+            id: user.id,
+            email: user.email,
+            name: user.user_metadata?.name || user.email?.split('@')[0],
+            role: fallbackRole
+          };
+
+          return next();
         }
 
         // Check if user is active

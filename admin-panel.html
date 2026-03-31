@@ -227,11 +227,11 @@
             <form id="loginForm" class="login-form">
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="admin@healthclinic.com" required>
+                    <input type="email" id="email" name="email" autocomplete="username" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" value="password123" required>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
                 </div>
                 <div class="form-group">
                     <button type="submit" class="btn" style="width: 100%;">Login</button>
@@ -392,8 +392,11 @@
         </div>
     </div>
 
+    <script src="js/app-config.js"></script>
     <script>
-        const API_BASE = 'http://localhost:3001/api';
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:3001/api'
+            : `${window.__APP_CONFIG__?.BACKEND_URL}/api`;
         let authToken = localStorage.getItem('authToken');
         let currentUser = null;
         let appointmentTypes = [];
