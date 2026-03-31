@@ -159,33 +159,62 @@ async function joinVideoCall() {
 async function loadWherebyVideo(tokenResponse) {
     const container = document.getElementById('videoContent');
     
-    // TODO: Load Whereby SDK
-    // <script src="https://whereby.com/sdk/client.js"></script>
-    // Then:
-    // 
-    // const wherbyRoom = new Whereby.EmbeddedRoom({
-    //     roomUrl: `https://whereby.com/room/${state.roomId}`,
-    //     accessToken: state.token,
-    //     container: container,
-    //     expiresAt: new Date(tokenResponse.expiresAt)
-    // });
-    //
-    // wherbyRoom.on('disconnected', () => {
-    //     state.status = 'ended';
-    //     updateUIForStatus();
-    // });
+        try {
+            // Check if Whereby SDK is loaded
+            if (typeof Whereby === 'undefined') {
+                throw new Error('Whereby SDK not loaded. Check CDN connection.');
+            }
 
-    // Stub for development
-    container.innerHTML = `
-        <div style="color: white; text-align: center; padding: 100px 20px;">
-            <h2>🎥 Video Connection Ready</h2>
-            <p>Room ID: ${state.roomId}</p>
-            <p>Token expires: ${new Date(tokenResponse.expiresAt).toLocaleTimeString()}</p>
-            <p style="font-size: 12px; margin-top: 20px; opacity: 0.7;">
-                Configure Whereby SDK to activate video
-            </p>
-        </div>
-    `;
+            // Create Whereby embedded room
+            const wherbyRoom = new Whereby.EmbeddedRoom({
+                roomUrl: `https://whereby.com/room/${state.roomId}`,
+                accessToken: state.token,
+                container: container,
+                height: '100%',
+                expiresAt: new Date(tokenResponse.expiresAt),
+                theme: {
+                    primaryColor: '#667eea',
+                    participants: {
+                        aspectRatio: '16:9'
+                    }
+                }
+            });
+
+            // Handle disconnect
+            wherbyRoom.on('disconnected', () => {
+                console.log('Whereby room disconnected');
+                state.status = 'ended';
+                updateUIForStatus();
+                showAlert('Video call ended', 'info');
+            });
+
+            // Handle connection errors
+            wherbyRoom.on('error', (error) => {
+                console.error('Whereby error:', error);
+                showAlert(`Video error: ${error.message}`, 'error');
+            });
+
+            // Store room reference for cleanup
+            window.wherbyRoom = wherbyRoom;
+
+            console.log('Whereby room loaded successfully');
+
+        } catch (error) {
+            console.error('Failed to load Whereby video:', error);
+            showAlert(`Failed to load video: ${error.message}`, 'error');
+        
+            // Fallback display
+            container.innerHTML = `
+                <div style="color: white; text-align: center; padding: 100px 20px;">
+                    <h2>❌ Video Connection Failed</h2>
+                    <p>${error.message}</p>
+                    <button onclick="location.reload()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
 
     document.getElementById('videoFrame').style.display = 'flex';
     document.getElementById('waitingRoom').style.display = 'none';
