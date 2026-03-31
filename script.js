@@ -1404,20 +1404,54 @@ function loadUserDashboard() {
 
 // Check authentication state on page load
 async function checkAuthState() {
+    const storedUser = {
+        id: localStorage.getItem('userId'),
+        email: localStorage.getItem('userEmail'),
+        name: localStorage.getItem('userName'),
+        role: localStorage.getItem('userRole') || 'client',
+        token: localStorage.getItem('authToken')
+    };
+
+    const hasStoredAuth = Boolean(storedUser.email && (storedUser.token || storedUser.id));
+
     try {
         const session = await SupabaseAuth.getCurrentSession();
         if (session?.user) {
             // Get user profile
             const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
             updateUIForAuthenticatedUser(userProfile.user);
+            return;
+        }
+
+        // If session is unavailable but we still have local auth context,
+        // keep the user in an authenticated UI state on the landing page.
+        if (hasStoredAuth) {
+            updateUIForAuthenticatedUser({
+                id: storedUser.id || '',
+                email: storedUser.email,
+                name: storedUser.name || storedUser.email,
+                role: storedUser.role
+            });
         }
     } catch (error) {
         console.log('No active session');
-        // Clear any stale tokens
+
+        if (hasStoredAuth) {
+            updateUIForAuthenticatedUser({
+                id: storedUser.id || '',
+                email: storedUser.email,
+                name: storedUser.name || storedUser.email,
+                role: storedUser.role
+            });
+            return;
+        }
+
+        // Clear any stale tokens when no usable auth context exists.
         localStorage.removeItem('authToken');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
         localStorage.removeItem('userId');
+        localStorage.removeItem('userEmail');
     }
 }
 
