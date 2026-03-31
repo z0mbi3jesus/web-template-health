@@ -178,12 +178,37 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-config.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('authToken');
+        document.addEventListener('DOMContentLoaded', async () => {
+            let token = localStorage.getItem('authToken');
             const role = localStorage.getItem('userRole');
             const name = localStorage.getItem('userName') || 'Patient';
+            const hasLocalIdentity = Boolean(
+                localStorage.getItem('userId') ||
+                localStorage.getItem('userEmail') ||
+                localStorage.getItem('userName') ||
+                localStorage.getItem('userRole')
+            );
 
-            if (!token) {
+            // Recover auth token from Supabase session if it wasn't persisted.
+            if (!token && window.SupabaseAuth) {
+                try {
+                    const session = await window.SupabaseAuth.getCurrentSession();
+                    if (session?.access_token) {
+                        token = session.access_token;
+                        localStorage.setItem('authToken', token);
+                        if (session.user?.id && !localStorage.getItem('userId')) {
+                            localStorage.setItem('userId', session.user.id);
+                        }
+                        if (session.user?.email && !localStorage.getItem('userEmail')) {
+                            localStorage.setItem('userEmail', session.user.email);
+                        }
+                    }
+                } catch (error) {
+                    console.log('Session recovery warning:', error.message);
+                }
+            }
+
+            if (!token && !hasLocalIdentity) {
                 window.location.href = 'index.html';
                 return;
             }
