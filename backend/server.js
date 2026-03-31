@@ -64,10 +64,9 @@ const allowedOrigins = new Set([
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no Origin header (Render health checks, curl, server-to-server).
     if (!origin) {
-      return isDevelopment
-        ? callback(null, true)
-        : callback(new Error('Origin header required'));
+      return callback(null, true);
     }
 
     let hostname;
@@ -82,6 +81,15 @@ const corsOptions = {
     }
 
     if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow this app's Vercel domains (production and preview URLs).
+    if (hostname === 'web-template-health.vercel.app' || hostname === 'web-template-health-w27t.vercel.app') {
+      return callback(null, true);
+    }
+
+    if (hostname.endsWith('.vercel.app') && hostname.startsWith('web-template-health-')) {
       return callback(null, true);
     }
 
