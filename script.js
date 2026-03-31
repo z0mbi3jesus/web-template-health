@@ -1005,7 +1005,7 @@ async function handleSignin(form) {
                     window.location.href = 'admin-panel.html';
                 }, 1500);
             } else {
-                console.log('Regular user - staying on main site');
+                console.log('Client user detected - staying on logged-in landing page');
                 showSuccessMessage('Welcome back! You are now signed in.');
                 updateUIForAuthenticatedUser(userData);
             }
@@ -1399,7 +1399,7 @@ async function handleSignOut() {
 
 // Load user dashboard (placeholder)
 function loadUserDashboard() {
-    showSuccessMessage('Dashboard coming soon! For now, you can book appointments through our contact form.');
+    window.location.href = 'patient-hub.html';
 }
 
 // Check authentication state on page load

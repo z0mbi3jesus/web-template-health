@@ -389,6 +389,12 @@
                 </div>
                 <div id="timeSlotsList" class="slot-list loading">Loading time slots...</div>
             </div>
+
+            <div class="card">
+                <h3>🗓️ Appointment Queue</h3>
+                <p style="margin-bottom: 12px; color: #4A5568;">Review patient requests and update appointment status.</p>
+                <div id="appointmentsList" class="slot-list loading">Loading appointments...</div>
+            </div>
         </div>
     </div>
 
@@ -402,6 +408,7 @@
         let appointmentTypes = [];
         let staff = [];
         let timeSlots = [];
+        let appointments = [];
 
         // DOM Elements
         const loginSection = document.getElementById('loginSection');
@@ -522,7 +529,8 @@
             await Promise.all([
                 loadAppointmentTypes(),
                 loadStaff(),
-                loadTimeSlots()
+                loadTimeSlots(),
+                loadAppointments()
             ]);
             setupFormHandlers();
         }
@@ -565,6 +573,16 @@
                 displayTimeSlots();
             } catch (error) {
                 document.getElementById('timeSlotsList').innerHTML = '<p style="color: #e53e3e;">Failed to load time slots</p>';
+            }
+        }
+
+        async function loadAppointments() {
+            try {
+                const response = await apiCall('/appointments');
+                appointments = response.appointments || [];
+                displayAppointments();
+            } catch (error) {
+                document.getElementById('appointmentsList').innerHTML = '<p style="color: #e53e3e;">Failed to load appointments</p>';
             }
         }
 
@@ -661,6 +679,49 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        function displayAppointments() {
+            const container = document.getElementById('appointmentsList');
+
+            if (!appointments.length) {
+                container.innerHTML = '<p>No appointments found</p>';
+                return;
+            }
+
+            container.innerHTML = appointments.map(appt => {
+                const clientName = `${appt.client_first_name || ''} ${appt.client_last_name || ''}`.trim() || 'Client';
+                const staffName = `${appt.staff_first_name || ''} ${appt.staff_last_name || ''}`.trim() || 'Unassigned';
+                const status = appt.status || 'pending';
+                const statusColor = status === 'approved'
+                    ? '#38A169'
+                    : status === 'declined' || status === 'cancelled'
+                        ? '#E53E3E'
+                        : status === 'completed'
+                            ? '#3182CE'
+                            : '#B7791F';
+
+                const canApprove = status === 'pending';
+                const canDecline = status === 'pending';
+                const canComplete = status === 'approved';
+                const canCancel = status === 'pending' || status === 'approved';
+
+                return `
+                    <div class="slot-item" style="align-items: flex-start;">
+                        <div class="slot-info">
+                            <strong>${appt.appointment_date} ${appt.start_time} - ${appt.end_time}</strong><br>
+                            <small>${appt.appointment_type_name || 'Appointment'} | Client: ${clientName} | Provider: ${staffName}</small><br>
+                            <small style="font-weight:700; color:${statusColor}; text-transform: capitalize;">Status: ${status.replace('_', ' ')}</small>
+                        </div>
+                        <div class="slot-actions">
+                            ${canApprove ? `<button class="btn btn-small" onclick="updateAppointmentStatus('${appt.id}', 'approved')">Approve</button>` : ''}
+                            ${canDecline ? `<button class="btn btn-small btn-danger" onclick="declineAppointment('${appt.id}')">Decline</button>` : ''}
+                            ${canComplete ? `<button class="btn btn-small btn-secondary" onclick="updateAppointmentStatus('${appt.id}', 'completed')">Complete</button>` : ''}
+                            ${canCancel ? `<button class="btn btn-small btn-danger" onclick="updateAppointmentStatus('${appt.id}', 'cancelled')">Cancel</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Populate select dropdowns
@@ -778,6 +839,28 @@
             document.getElementById('slotStaffFilter').addEventListener('change', displayTimeSlots);
         }
 
+        async function updateAppointmentStatus(appointmentId, status, reason = '') {
+            try {
+                await apiCall(`/appointments/${appointmentId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        status,
+                        reason_for_decline: reason || undefined
+                    })
+                });
+
+                showMessage(statusMessage, `Appointment updated to ${status}.`, 'success');
+                await loadAppointments();
+            } catch (error) {
+                showMessage(statusMessage, `Failed to update appointment: ${error.message}`, 'error');
+            }
+        }
+
+        async function declineAppointment(appointmentId) {
+            const reason = prompt('Reason for decline (optional):', '');
+            await updateAppointmentStatus(appointmentId, 'declined', reason || '');
+        }
+
         // Delete time slot
         async function deleteTimeSlot(slotId) {
             if (!confirm('Are you sure you want to delete this time slot?')) {
@@ -810,6 +893,8 @@
 
         // Make deleteTimeSlot available globally
         window.deleteTimeSlot = deleteTimeSlot;
+        window.updateAppointmentStatus = updateAppointmentStatus;
+        window.declineAppointment = declineAppointment;
     </script>
 </body>
 </html>

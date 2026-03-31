@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f4f8f7;
+            --panel: #ffffff;
+            --ink: #182022;
+            --muted: #5e6a6d;
+            --brand: #0b8f7a;
+            --brand-2: #145ea8;
+            --line: #d8e1df;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Manrope', sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 15% 0%, #d7efe8 0%, transparent 40%),
+                radial-gradient(circle at 100% 100%, #dfe9ff 0%, transparent 35%),
+                var(--bg);
+        }
+
+        .app {
+            max-width: 1150px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            background: linear-gradient(120deg, #083f4d, #0b6b67 56%, #137b7f);
+            border-radius: 16px;
+            color: #f4fdfc;
+            padding: 18px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 14px 28px rgba(8, 63, 77, 0.2);
+        }
+
+        .title { margin: 0; font-size: 1.45rem; font-weight: 800; }
+        .subtitle { margin: 4px 0 0; opacity: 0.9; }
+
+        .btn {
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 8px 16px rgba(26, 46, 51, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 1.05rem;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.94rem;
+            line-height: 1.4;
+        }
+
+        .card a {
+            margin-top: auto;
+            text-decoration: none;
+            color: #fff;
+            font-weight: 700;
+            background: linear-gradient(120deg, var(--brand), var(--brand-2));
+            border-radius: 10px;
+            padding: 9px 12px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .status {
+            margin-top: 12px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            color: #334246;
+            font-size: 0.92rem;
+        }
+
+        @media (max-width: 960px) {
+            .grid { grid-template-columns: 1fr; }
+            .header { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header class="header">
+            <div>
+                <h1 class="title">Patient Dashboard</h1>
+                <p class="subtitle" id="welcomeText">Welcome back.</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="homeBtn" class="btn" type="button">Main Site</button>
+                <button id="logoutBtn" class="btn" type="button">Sign Out</button>
+            </div>
+        </header>
+
+        <section class="grid">
+            <article class="card">
+                <h3>Calendar & Booking</h3>
+                <p>View availability, request appointments, and manage your upcoming sessions.</p>
+                <a href="patient-calendar.html">Open Calendar</a>
+            </article>
+
+            <article class="card">
+                <h3>My Appointments</h3>
+                <p>Track request status, provider responses, and completed visits in one place.</p>
+                <a href="patient-calendar.html#appointments">View Appointments</a>
+            </article>
+
+            <article class="card">
+                <h3>Secure Video Visits</h3>
+                <p>Join remote sessions once your appointment includes a video room link.</p>
+                <a href="#" id="videoLink">Coming Next</a>
+            </article>
+
+            <article class="card">
+                <h3>Care Team Messages</h3>
+                <p>Review updates and reminders from your provider team.</p>
+                <a href="#" id="messagesLink">Coming Soon</a>
+            </article>
+
+            <article class="card">
+                <h3>Profile & Preferences</h3>
+                <p>Manage contact details, reminders, and communication preferences.</p>
+                <a href="#" id="profileLink">Coming Soon</a>
+            </article>
+
+            <article class="card">
+                <h3>Billing & Documents</h3>
+                <p>Access invoices, forms, and post-visit notes when enabled.</p>
+                <a href="#" id="billingLink">Coming Soon</a>
+            </article>
+        </section>
+
+        <div class="status">This dashboard is your landing page after sign-in. Calendar is now one section, not the full dashboard.</div>
+    </main>
+
+    <script src="js/app-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('authToken');
+            const role = localStorage.getItem('userRole');
+            const name = localStorage.getItem('userName') || 'Patient';
+
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            if (role === 'admin' || role === 'staff') {
+                window.location.href = 'admin-panel.html';
+                return;
+            }
+
+            const welcome = document.getElementById('welcomeText');
+            welcome.textContent = `Welcome back, ${name.split(' ')[0]}.`;
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                try {
+                    if (window.SupabaseAuth) {
+                        await window.SupabaseAuth.signOut();
+                    }
+                } catch (error) {
+                    console.log('Sign out warning:', error.message);
+                }
+
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userId');
+                window.location.href = 'index.html';
+            });
+
+            ['videoLink', 'messagesLink', 'profileLink', 'billingLink'].forEach((id) => {
+                document.getElementById(id).addEventListener('click', (event) => {
+                    event.preventDefault();
+                    alert('This section is planned next.');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

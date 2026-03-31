@@ -252,10 +252,101 @@ router.post('/', protect, async (req, res, next) => {
 // @access  Private
 router.put('/:id', protect, async (req, res, next) => {
   try {
-    // Implementation will be added later
+    const { id } = req.params;
+    const { status, staff_notes, reason_for_decline, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        error: 'status is required'
+      });
+    }
+
+    const validStatuses = ['pending', 'approved', 'declined', 'completed', 'cancelled', 'no_show'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const existingResult = await query(
+      `SELECT a.*, uc.first_name as client_first_name, uc.last_name as client_last_name
+       FROM appointments a
+       LEFT JOIN users uc ON a.client_id = uc.id
+       WHERE a.id = $1`,
+      [id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Appointment not found'
+      });
+    }
+
+    const appointment = existingResult.rows[0];
+    const isClientOwner = req.user.role === 'client' && appointment.client_id === req.user.id;
+    const isStaff = req.user.role === 'staff' || req.user.role === 'admin';
+
+    if (!isClientOwner && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to update this appointment'
+      });
+    }
+
+    if (isClientOwner) {
+      if (status !== 'cancelled') {
+        return res.status(403).json({
+          success: false,
+          error: 'Clients can only cancel appointments'
+        });
+      }
+
+      if (!['pending', 'approved'].includes(appointment.status)) {
+        return res.status(409).json({
+          success: false,
+          error: 'Only pending or approved appointments can be cancelled'
+        });
+      }
+    }
+
+    if (isStaff) {
+      const staffAllowedStatuses = ['approved', 'declined', 'completed', 'cancelled', 'no_show', 'pending'];
+      if (!staffAllowedStatuses.includes(status)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Staff/admin status update is not permitted'
+        });
+      }
+    }
+
+    const updateResult = await query(
+      `UPDATE appointments
+       SET status = $1,
+           staff_notes = COALESCE($2, staff_notes),
+           reason_for_decline = CASE WHEN $1 = 'declined' THEN $3 ELSE reason_for_decline END,
+           notes = COALESCE($4, notes),
+           approved_at = CASE WHEN $1 = 'approved' THEN CURRENT_TIMESTAMP ELSE approved_at END,
+           approved_by = CASE WHEN $1 = 'approved' THEN $5 ELSE approved_by END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6
+       RETURNING id, client_id, staff_id, appointment_type_id, appointment_date, start_time, end_time, status, client_notes, staff_notes, reason_for_decline, updated_at`,
+      [
+        status,
+        staff_notes || null,
+        reason_for_decline || null,
+        notes || null,
+        isStaff ? req.user.id : null,
+        id
+      ]
+    );
+
     res.status(200).json({
       success: true,
-      message: 'Update appointment endpoint - to be implemented'
+      message: 'Appointment updated successfully',
+      appointment: updateResult.rows[0]
     });
   } catch (error) {
     next(error);
