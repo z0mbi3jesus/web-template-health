@@ -148,8 +148,8 @@
 
             <article class="card">
                 <h3>Secure Video Visits</h3>
-                <p>Join remote sessions once your appointment includes a video room link.</p>
-                <a href="#" id="videoLink">Coming Next</a>
+                <p>Join secure video sessions for approved appointments when available.</p>
+                <a href="#" id="videoLink">📹 Join Video</a>
             </article>
 
             <article class="card">
@@ -242,11 +242,33 @@
                 window.location.href = 'index.html';
             });
 
-            ['videoLink', 'messagesLink', 'profileLink', 'billingLink'].forEach((id) => {
+            ['messagesLink', 'profileLink', 'billingLink'].forEach((id) => {
                 document.getElementById(id).addEventListener('click', (event) => {
                     event.preventDefault();
                     alert('This section is planned next.');
                 });
+            });
+
+            // Video visits - check for active appointments with video sessions
+            document.getElementById('videoLink').addEventListener('click', async (event) => {
+                event.preventDefault();
+                
+                try {
+                    // Fetch user's upcoming appointments with video visits
+                    const appointments = await SupabaseAPI.makeRequest('/api/appointments?status=approved');
+                    
+                    if (!appointments || appointments.length === 0) {
+                        alert('No approved appointments with video visits available.');
+                        return;
+                    }
+
+                    // For now, navigate to the latest appointment's video visit
+                    const latestAppt = appointments[0];
+                    window.location.href = `video-visit.html?appointmentId=${latestAppt.id}`;
+                } catch (error) {
+                    console.error('Error fetching video visits:', error);
+                    alert('Unable to load video visits. Please try again.');
+                }
             });
         });
     </script>
