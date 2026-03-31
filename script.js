@@ -1,15 +1,30 @@
 // Health Professional Website JavaScript
+function safeInit(initFn, label) {
+    try {
+        initFn();
+    } catch (error) {
+        console.error(`Initialization failed for ${label}:`, error);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all functionality
-    initNavigation();
-    initScrollEffects();
-    initFormValidation();
-    initSmoothScrolling();
-    initAnimations();
-    initAccessibility();
-    initCookieConsent();
-    initModals();
-    initAuthForms();
+    // Initialize all functionality with isolation so one failure does not block auth/signup.
+    safeInit(initNavigation, 'navigation');
+    safeInit(initScrollEffects, 'scroll-effects');
+    safeInit(initFormValidation, 'form-validation');
+    safeInit(initSmoothScrolling, 'smooth-scrolling');
+    safeInit(initAnimations, 'animations');
+    safeInit(initAccessibility, 'accessibility');
+    safeInit(initCookieConsent, 'cookie-consent');
+    safeInit(initModals, 'modals');
+    safeInit(initAuthForms, 'auth-forms');
+    safeInit(initBookingForm, 'booking-form');
+
+    // Small delay to ensure Supabase is initialized
+    setTimeout(() => {
+        safeInit(checkAuthState, 'auth-state-check');
+        safeInit(initAuthStateListener, 'auth-state-listener');
+    }, 100);
 });
 
 // Navigation functionality
@@ -1660,17 +1675,4 @@ async function handleBooking(form) {
 // Initialize privacy compliance and authentication
 console.log('Privacy compliance and authentication initialized');
 
-// Check auth state and listen for changes when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize modals, forms, and booking
-    initModals();
-    initAuthForms();
-    initBookingForm();
-    initCookieConsent();
-
-    // Small delay to ensure Supabase is initialized
-    setTimeout(() => {
-        checkAuthState();
-        initAuthStateListener();
-    }, 100);
-});
+// Auth initialization is handled by the unified DOMContentLoaded listener above.
