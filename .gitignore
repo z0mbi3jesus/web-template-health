@@ -2,7 +2,14 @@
 # Healthcare Appointment System - .gitignore
 # =====================================================
 
+# =====================================================
+# Backend (Private - not included in public portfolio)
+# =====================================================
+backend/
+
+# =====================================================
 # Environment Variables (CRITICAL - Contains API Keys)
+# =====================================================
 .env
 .env.local
 .env.development
@@ -351,5 +358,15 @@ temp/
 # ALWAYS verify before committing:
 # - No hardcoded credentials in code
 # - No real email addresses in test data
+
+# Local test files (not part of public portfolio)
+test-api.js
+test-connectivity.js
+scripts/test-*.js
+scripts/quick-test.js
+scripts/debug-*.js
+scripts/check-tables.js
+scripts/security-check.js
+scripts/detailed-error.js
 # - No production URLs in development files
 # - No sensitive configuration values
