@@ -1404,6 +1404,7 @@ function loadUserDashboard() {
 
 // Check authentication state on page load
 async function checkAuthState() {
+    const fromDashboard = new URLSearchParams(window.location.search).get('fromDashboard') === '1';
     const storedUser = {
         id: localStorage.getItem('userId'),
         email: localStorage.getItem('userEmail'),
@@ -1412,9 +1413,9 @@ async function checkAuthState() {
         token: localStorage.getItem('authToken')
     };
 
-    const hasStoredAuth = Boolean(
-        storedUser.token && (storedUser.email || storedUser.name || storedUser.id || storedUser.role)
-    );
+    const hasStoredIdentity = Boolean(storedUser.email || storedUser.name || storedUser.id || storedUser.role);
+
+    const hasStoredAuth = Boolean(storedUser.token && hasStoredIdentity);
 
     const fallbackUser = {
         id: storedUser.id || '',
@@ -1438,10 +1439,22 @@ async function checkAuthState() {
             updateUIForAuthenticatedUser(fallbackUser);
             return;
         }
+
+        // Returning from dashboard: preserve UI state when identity exists,
+        // even if the token is temporarily unavailable.
+        if (fromDashboard && hasStoredIdentity) {
+            updateUIForAuthenticatedUser(fallbackUser);
+            return;
+        }
     } catch (error) {
         console.log('No active session');
 
         if (hasStoredAuth) {
+            updateUIForAuthenticatedUser(fallbackUser);
+            return;
+        }
+
+        if (fromDashboard && hasStoredIdentity) {
             updateUIForAuthenticatedUser(fallbackUser);
             return;
         }

@@ -106,7 +106,7 @@ function wireEvents() {
     });
 
     els.backHomeBtn.addEventListener('click', () => {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?fromDashboard=1';
     });
 }
 

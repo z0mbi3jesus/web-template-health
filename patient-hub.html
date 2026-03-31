@@ -222,7 +222,7 @@
             welcome.textContent = `Welcome back, ${name.split(' ')[0]}.`;
 
             document.getElementById('homeBtn').addEventListener('click', () => {
-                window.location.href = 'index.html';
+                window.location.href = 'index.html?fromDashboard=1';
             });
 
             document.getElementById('logoutBtn').addEventListener('click', async () => {
