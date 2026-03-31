@@ -1412,7 +1412,16 @@ async function checkAuthState() {
         token: localStorage.getItem('authToken')
     };
 
-    const hasStoredAuth = Boolean(storedUser.email && (storedUser.token || storedUser.id));
+    const hasStoredAuth = Boolean(
+        storedUser.token && (storedUser.email || storedUser.name || storedUser.id || storedUser.role)
+    );
+
+    const fallbackUser = {
+        id: storedUser.id || '',
+        email: storedUser.email || 'patient@local',
+        name: storedUser.name || storedUser.email || 'Patient',
+        role: storedUser.role
+    };
 
     try {
         const session = await SupabaseAuth.getCurrentSession();
@@ -1426,23 +1435,14 @@ async function checkAuthState() {
         // If session is unavailable but we still have local auth context,
         // keep the user in an authenticated UI state on the landing page.
         if (hasStoredAuth) {
-            updateUIForAuthenticatedUser({
-                id: storedUser.id || '',
-                email: storedUser.email,
-                name: storedUser.name || storedUser.email,
-                role: storedUser.role
-            });
+            updateUIForAuthenticatedUser(fallbackUser);
+            return;
         }
     } catch (error) {
         console.log('No active session');
 
         if (hasStoredAuth) {
-            updateUIForAuthenticatedUser({
-                id: storedUser.id || '',
-                email: storedUser.email,
-                name: storedUser.name || storedUser.email,
-                role: storedUser.role
-            });
+            updateUIForAuthenticatedUser(fallbackUser);
             return;
         }
 
