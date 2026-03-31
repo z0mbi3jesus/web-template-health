@@ -8,14 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Patient hub dashboard (landing page for logged-in patients)
-- Patient calendar with appointment booking
-- Admin panel for managing appointments and time slots
-- Video visit placeholder (coming soon)
+- HIPAA-compliant video visit system with Whereby integration
+- Secure video visit page (`video-visit.html`) with access control
+- Video visit backend API endpoints with Whereby token generation
+- Audit logging middleware for HIPAA compliance tracking
+- Video visit database schema with RLS policies
+- HIPAA video security guide and setup documentation
+- Short-lived access tokens (15 min expiration)
+- Role-based access control for video sessions
 
-### Fixed
-- Auth state preservation when returning from dashboard to main site
-- CORS configuration for Vercel deployment
+### Security
+- Whereby HIPAA BAA integration ready
+- Encrypted video streams (Whereby)
+- Token-based access (no persistent sessions)
+- Comprehensive audit logging for all video events
+- Row Level Security (RLS) enforced on video visits
 
 ## [0.1.0] - 2026-03-31
 

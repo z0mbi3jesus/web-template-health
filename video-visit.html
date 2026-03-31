@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Video Visit</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .video-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .video-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .video-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+
+        .appointment-details {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .appointment-details p {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .appointment-details strong {
+            min-width: 150px;
+        }
+
+        .video-frame {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            margin: 30px 0;
+            min-height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+        }
+
+        .video-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            padding: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn-video {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-join {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-join:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-leave {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-leave:hover {
+            background: #c82333;
+        }
+
+        .btn-end {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-end:hover {
+            background: #5a6268;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-waiting {
+            background: #ffc107;
+        }
+
+        .status-active {
+            background: #28a745;
+        }
+
+        .status-ended {
+            background: #6c757d;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .security-badge {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .security-badge::before {
+            content: "🔒";
+            font-size: 20px;
+        }
+
+        .waiting-room {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .waiting-room h2 {
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        .footer-notice {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 30px;
+            font-size: 14px;
+            text-align: center;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="video-container">
+        <a href="patient-hub.html" class="back-btn">← Back to Dashboard</a>
+
+        <div class="video-header">
+            <h1>Secure Video Visit</h1>
+            <p style="margin: 0;">HIPAA-Compliant Healthcare Communication</p>
+        </div>
+
+        <div id="appointmentSection" style="display: none;">
+            <div class="appointment-details">
+                <p>
+                    <strong>Appointment Type:</strong>
+                    <span id="appointmentType">—</span>
+                </p>
+                <p>
+                    <strong>Scheduled Time:</strong>
+                    <span id="appointmentTime">—</span>
+                </p>
+                <p>
+                    <strong>Provider:</strong>
+                    <span id="providerName">—</span>
+                </p>
+                <p>
+                    <strong>Status:</strong>
+                    <span id="visitStatus">—</span>
+                </p>
+            </div>
+
+            <div class="security-badge">
+                All video communications are encrypted and HIPAA-compliant. No recording without consent.
+            </div>
+
+            <div id="waitingRoom" class="waiting-room">
+                <h2>Waiting for Provider...</h2>
+                <div class="spinner"></div>
+                <p>Your provider will join shortly. Please keep this window open.</p>
+            </div>
+
+            <div id="videoFrame" class="video-frame" style="display: none;">
+                <!-- Whereby video embed will go here -->
+                <div id="videoContent" style="width: 100%; height: 100%;"></div>
+            </div>
+
+            <div class="video-controls" id="controls" style="display: none;">
+                <button class="btn-video btn-join" id="joinBtn">
+                    📹 Join Video
+                </button>
+                <button class="btn-video btn-leave" id="leaveBtn">
+                    📵 Leave Call
+                </button>
+                <button class="btn-video btn-end" id="endBtn">
+                    ⏹ End Visit
+                </button>
+            </div>
+
+            <div id="alert" class="alert"></div>
+
+            <div class="footer-notice">
+                <strong>Privacy Notice:</strong> This video visit is HIPAA-protected. Do not share this link with anyone. 
+                Your identity will be verified before the call begins.
+            </div>
+        </div>
+
+        <div id="noAppointment" class="alert alert-warning show">
+            ⚠️ No active appointment found. 
+            <a href="patient-hub.html">Return to your dashboard</a> to schedule or join a visit.
+        </div>
+    </div>
+
+    <script src="js/app-config.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/video-visit.js"></script>
+</body>
+</html>
