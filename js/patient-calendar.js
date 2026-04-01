@@ -131,11 +131,12 @@ async function apiRequest(path, options = {}) {
 }
 
 async function loadAppointmentTypes() {
-    const payload = await apiRequest('/appointments/types');
-    state.appointmentTypes = payload.appointmentTypes || [];
+    const payload = await apiRequest('/appointment-types');
+    state.appointmentTypes = Array.isArray(payload) ? payload : (payload.appointmentTypes || []);
 
     if (!state.appointmentTypes.length) {
-        throw new Error('No appointment types are available yet.');
+        els.typeSelect.innerHTML = '<option value="">No visit types available</option>';
+        return;
     }
 
     const options = state.appointmentTypes
@@ -148,15 +149,41 @@ async function loadAppointmentTypes() {
 async function refreshCalendarData() {
     const selectedType = els.typeSelect.value || state.appointmentTypes[0]?.id;
     if (!selectedType) {
+        state.availableSlotsByDate = {};
+        state.selectedDateIso = isoDate(new Date(state.monthAnchor));
+        renderCalendar();
+        renderSelectedDateSlots();
         return;
     }
 
-    const params = new URLSearchParams({ service_id: selectedType });
-    const payload = await apiRequest(`/appointments/available?${params.toString()}`);
+    const params = new URLSearchParams({ appointment_type_id: selectedType });
+    const payload = await apiRequest(`/available-slots?${params.toString()}`);
+    const slotRows = Array.isArray(payload) ? payload : (payload.availableSlots || []);
 
     const grouped = {};
-    (payload.availableSlots || []).forEach((entry) => {
-        grouped[entry.date] = entry.slots || [];
+    slotRows.forEach((slot) => {
+        const date = typeof slot.start_time === 'string' ? slot.start_time.slice(0, 10) : '';
+        if (!date) return;
+
+        if (!grouped[date]) {
+            grouped[date] = [];
+        }
+
+        const providerFullName = (slot.staff_name || slot.provider_name || '').trim();
+        const nameParts = providerFullName ? providerFullName.split(/\s+/) : [];
+        const firstName = nameParts.shift() || '';
+        const lastName = nameParts.join(' ');
+
+        grouped[date].push({
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            display_start: new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            display_end: new Date(slot.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            staff_id: slot.staff_id,
+            staff_first_name: slot.staff_first_name || firstName,
+            staff_last_name: slot.staff_last_name || lastName,
+            appointment_type_name: slot.appointment_type_name || ''
+        });
     });
 
     state.availableSlotsByDate = grouped;
@@ -267,7 +294,7 @@ function renderSelectedDateSlots() {
         const staffName = `${slot.staff_first_name || ''} ${slot.staff_last_name || ''}`.trim() || 'Provider';
         return `
             <div class="slot-item">
-                <strong>${slot.start_time} - ${slot.end_time}</strong>
+                <strong>${slot.display_start || slot.start_time} - ${slot.display_end || slot.end_time}</strong>
                 <div class="slot-meta">${staffName} | ${slot.appointment_type_name || 'Appointment'} </div>
                 <div class="slot-actions">
                     <button class="btn btn-primary" type="button" data-slot-index="${idx}">Select Slot</button>
@@ -293,7 +320,9 @@ function updateChosenSlotPill() {
     }
 
     const provider = `${state.chosenSlot.staff_first_name || ''} ${state.chosenSlot.staff_last_name || ''}`.trim();
-    els.selectedSlotPill.textContent = `${state.selectedDateIso} ${state.chosenSlot.start_time}-${state.chosenSlot.end_time}${provider ? ` with ${provider}` : ''}`;
+    const startLabel = state.chosenSlot.display_start || state.chosenSlot.start_time;
+    const endLabel = state.chosenSlot.display_end || state.chosenSlot.end_time;
+    els.selectedSlotPill.textContent = `${state.selectedDateIso} ${startLabel}-${endLabel}${provider ? ` with ${provider}` : ''}`;
 }
 
 function updateBookButtonState() {
