@@ -9,7 +9,7 @@ const SUPABASE_CONFIG = {
 
 const BACKEND_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3001'
-    : window.__APP_CONFIG__?.BACKEND_URL;
+    : (window.__APP_CONFIG__?.BACKEND_URL || 'https://web-template-health.onrender.com');
 
 // Create Supabase client instance
 let supabaseClient;

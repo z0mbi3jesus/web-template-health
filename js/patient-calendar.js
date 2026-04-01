@@ -1,6 +1,6 @@
 const API_BASE = window.location.hostname === 'localhost'
     ? 'http://localhost:3001/api'
-    : `${window.__APP_CONFIG__?.BACKEND_URL}/api`;
+    : `${window.__APP_CONFIG__?.BACKEND_URL || 'https://web-template-health.onrender.com'}/api`;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
