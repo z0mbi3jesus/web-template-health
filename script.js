@@ -1531,9 +1531,10 @@ function initBookingForm() {
 
 async function loadAppointmentServices() {
     try {
-        const data = await SupabaseAPI.makeRequest('/api/appointments/types');
+        const data = await SupabaseAPI.makeRequest('/api/appointment-types');
+        const appointmentTypes = Array.isArray(data) ? data : (data?.appointmentTypes || []);
 
-        if (!data.success || !data.appointmentTypes) {
+        if (appointmentTypes.length === 0) {
             console.error('Failed to load appointment types');
             return;
         }
@@ -1541,7 +1542,7 @@ async function loadAppointmentServices() {
         const serviceSelect = document.getElementById('appointmentService');
         serviceSelect.innerHTML = '<option value="">Choose a service...</option>';
 
-        data.appointmentTypes.forEach(type => {
+        appointmentTypes.forEach(type => {
             const option = document.createElement('option');
             option.value = type.id;
             option.textContent = type.name;
@@ -1558,12 +1559,8 @@ async function loadAvailableSlots(serviceId) {
     try {
         console.log('Loading available slots for service:', serviceId);
         
-        const data = await SupabaseAPI.makeRequest(`/api/appointments/available?service_id=${serviceId}`);
-
-        if (!data.success) {
-            console.error('Failed to load slots:', data.error);
-            return;
-        }
+        const data = await SupabaseAPI.makeRequest(`/api/available-slots?appointment_type_id=${serviceId}`);
+        const slotRows = Array.isArray(data) ? data : (data?.availableSlots || []);
 
         const dateSelect = document.getElementById('appointmentDate');
         const timeSelect = document.getElementById('appointmentTime');
@@ -1573,13 +1570,46 @@ async function loadAvailableSlots(serviceId) {
         timeSelect.innerHTML = '<option value="">Choose a time...</option>';
         providerSelect.innerHTML = '<option value="">Select a provider...</option>';
 
-        if (data.availableSlots.length === 0) {
+        if (slotRows.length === 0) {
             dateSelect.innerHTML = '<option value="">No available slots</option>';
             return;
         }
 
+        // Normalize slot rows from Supabase API to the shape expected by the booking UI.
+        const groupedSlots = slotRows.reduce((acc, slot) => {
+            const date = typeof slot.start_time === 'string' ? slot.start_time.slice(0, 10) : '';
+            if (!date) return acc;
+
+            if (!acc[date]) {
+                acc[date] = {
+                    date,
+                    day_name: new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long' }),
+                    slots: []
+                };
+            }
+
+            const startDate = new Date(slot.start_time);
+            const endDate = new Date(slot.end_time);
+            const providerName = (slot.users && slot.users.name) ? slot.users.name.trim() : 'Provider';
+            const nameParts = providerName.split(/\s+/);
+            const firstName = nameParts.shift() || 'Provider';
+            const lastName = nameParts.join(' ');
+
+            acc[date].slots.push({
+                start_time: startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                end_time: endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                staff_id: slot.staff_id,
+                staff_first_name: firstName,
+                staff_last_name: lastName
+            });
+
+            return acc;
+        }, {});
+
+        const normalizedSlots = Object.values(groupedSlots).sort((a, b) => new Date(a.date) - new Date(b.date));
+
         // Populate dates
-        data.availableSlots.forEach(daySlots => {
+        normalizedSlots.forEach(daySlots => {
             const option = document.createElement('option');
             option.value = daySlots.date;
             option.textContent = `${daySlots.day_name} - ${new Date(daySlots.date).toLocaleDateString()}`;
@@ -1587,7 +1617,7 @@ async function loadAvailableSlots(serviceId) {
         });
 
         // Store slots for later use
-        window.availableSlotsData = data.availableSlots;
+        window.availableSlotsData = normalizedSlots;
 
         // Add change listener to date select
         dateSelect.addEventListener('change', function() {
@@ -1622,7 +1652,7 @@ function populateTimeSlots(selectedDate, serviceId) {
         if (!providersMap.has(slot.staff_id)) {
             providersMap.set(slot.staff_id, {
                 id: slot.staff_id,
-                name: `${slot.staff_first_name} ${slot.staff_last_name}`,
+                name: `${slot.staff_first_name} ${slot.staff_last_name}`.trim(),
                 availableTimes: []
             });
         }

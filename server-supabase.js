@@ -322,11 +322,7 @@ app.get('/api/available-slots', async (req, res) => {
 
         let query = supabase
             .from(TABLES.AVAILABLE_SLOTS)
-            .select(`
-                *,
-                appointment_types:appointment_type_id(*),
-                users:staff_id(name)
-            `)
+            .select('*')
             .eq('is_booked', false)
             .eq('is_blocked', false);
 
