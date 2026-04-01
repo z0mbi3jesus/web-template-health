@@ -320,6 +320,11 @@ app.get('/api/available-slots', async (req, res) => {
     try {
         const { start_date, end_date, appointment_type_id } = req.query;
 
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (appointment_type_id && !uuidPattern.test(String(appointment_type_id))) {
+            return res.json([]);
+        }
+
         let query = supabase
             .from(TABLES.AVAILABLE_SLOTS)
             .select('*')
