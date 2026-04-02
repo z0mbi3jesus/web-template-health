@@ -24,7 +24,25 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+    origin: (origin, callback) => {
+        const configuredOrigin = process.env.FRONTEND_URL;
+        const allowedOrigins = [
+            configuredOrigin,
+            'http://localhost:8081',
+            'http://localhost:3000'
+        ].filter(Boolean);
+
+        // Allow non-browser requests and known local/dev/prod frontend hosts.
+        if (
+            !origin ||
+            allowedOrigins.includes(origin) ||
+            /^https:\/\/.+\.vercel\.app$/i.test(origin)
+        ) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
 }));
 
