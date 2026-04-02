@@ -54,9 +54,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         await loadAppointmentTypes();
         await refreshCalendarData();
-        await loadMyAppointments();
     } catch (error) {
         showMessage(error.message || 'Failed to load calendar data.', 'err');
+    }
+
+    try {
+        await loadMyAppointments();
+    } catch (error) {
+        showMessage(error.message || 'Could not load your appointments.', 'warn');
     }
 });
 
@@ -175,6 +180,7 @@ async function refreshCalendarData() {
         const lastName = nameParts.join(' ');
 
         grouped[date].push({
+            slot_id: slot.id,
             start_time: slot.start_time,
             end_time: slot.end_time,
             display_start: new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -341,12 +347,10 @@ async function handleBooking() {
 
     try {
         const payload = {
+            slot_id: state.chosenSlot.slot_id,
             appointment_type_id: els.typeSelect.value,
-            staff_id: state.chosenSlot.staff_id,
-            appointment_date: state.selectedDateIso,
             start_time: state.chosenSlot.start_time,
-            end_time: state.chosenSlot.end_time,
-            notes: els.notesInput.value.trim()
+            client_notes: els.notesInput.value.trim()
         };
 
         await apiRequest('/appointments', {
@@ -370,7 +374,7 @@ async function handleBooking() {
 
 async function loadMyAppointments() {
     const payload = await apiRequest('/appointments');
-    state.myAppointments = payload.appointments || [];
+    state.myAppointments = Array.isArray(payload) ? payload : (payload.appointments || []);
 
     if (!state.myAppointments.length) {
         els.appointmentsList.innerHTML = '<div class="appt-item"><strong>No appointments yet</strong><div class="appt-meta">Book your first appointment from the calendar.</div></div>';
@@ -378,13 +382,17 @@ async function loadMyAppointments() {
     }
 
     els.appointmentsList.innerHTML = state.myAppointments.map((appt) => {
-        const canCancel = ['pending', 'approved'].includes(appt.status);
-        const provider = `${appt.staff_first_name || ''} ${appt.staff_last_name || ''}`.trim() || 'Provider TBD';
+        const canCancel = ['pending', 'confirmed'].includes(appt.status);
+        const provider = appt.staff?.name || 'Provider TBD';
+        const appointmentName = appt.appointment_types?.name || appt.appointment_type_name || 'Appointment';
+        const startLabel = appt.start_time ? new Date(appt.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const endLabel = appt.end_time ? new Date(appt.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const dateLabel = appt.start_time ? new Date(appt.start_time).toLocaleDateString() : (appt.appointment_date || '');
 
         return `
             <div class="appt-item">
-                <strong>${appt.appointment_date} | ${appt.start_time}-${appt.end_time}</strong>
-                <div class="appt-meta">${appt.appointment_type_name || 'Appointment'} with ${provider}</div>
+                <strong>${dateLabel} | ${startLabel}-${endLabel}</strong>
+                <div class="appt-meta">${appointmentName} with ${provider}</div>
                 <div style="margin-top:6px;"><span class="status ${appt.status}">${appt.status.replace('_', ' ')}</span></div>
                 <div class="appt-actions">
                     ${canCancel ? `<button class="btn btn-secondary" type="button" data-cancel-id="${appt.id}">Cancel</button>` : ''}
