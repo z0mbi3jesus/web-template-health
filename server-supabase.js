@@ -373,19 +373,46 @@ app.post('/api/appointment-types', authenticateUser, requireRole([USER_ROLES.STA
 // AVAILABLE SLOTS ROUTES
 // =====================================================
 
+// Get staff directory (staff/admin only)
+app.get('/api/staff', authenticateUser, requireRole([USER_ROLES.STAFF, USER_ROLES.ADMIN]), async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from(TABLES.USERS)
+            .select('id, name, email, role')
+            .in('role', [USER_ROLES.STAFF, USER_ROLES.ADMIN])
+            .order('name');
+
+        if (error) {
+            return res.status(500).json({ message: 'Failed to fetch staff list' });
+        }
+
+        res.json(data || []);
+    } catch (error) {
+        console.error('Error fetching staff list:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Get available slots
 app.get('/api/available-slots', async (req, res) => {
     try {
-        const { start_date, end_date, appointment_type_id } = req.query;
+        const { start_date, end_date, appointment_type_id, staff_id } = req.query;
 
         const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         if (appointment_type_id && !uuidPattern.test(String(appointment_type_id))) {
             return res.json([]);
         }
+        if (staff_id && !uuidPattern.test(String(staff_id))) {
+            return res.json([]);
+        }
 
         let query = supabase
             .from(TABLES.AVAILABLE_SLOTS)
-            .select('*')
+            .select(`
+                *,
+                users:staff_id(name, email),
+                appointment_types:appointment_type_id(name)
+            `)
             .eq('is_booked', false)
             .eq('is_blocked', false);
 
@@ -397,6 +424,9 @@ app.get('/api/available-slots', async (req, res) => {
         }
         if (appointment_type_id) {
             query = query.eq('appointment_type_id', appointment_type_id);
+        }
+        if (staff_id) {
+            query = query.eq('staff_id', staff_id);
         }
 
         const { data, error } = await query.order('start_time');
@@ -415,12 +445,18 @@ app.get('/api/available-slots', async (req, res) => {
 // Create available slot (staff/admin only)
 app.post('/api/available-slots', authenticateUser, requireRole([USER_ROLES.STAFF, USER_ROLES.ADMIN]), async (req, res) => {
     try {
-        const { appointment_type_id, start_time, end_time, max_bookings = 1 } = req.body;
+        const { appointment_type_id, start_time, end_time, max_bookings = 1, staff_id } = req.body;
+
+        if (!appointment_type_id || !start_time || !end_time) {
+            return res.status(400).json({ message: 'appointment_type_id, start_time and end_time are required' });
+        }
+
+        const targetStaffId = req.user.role === USER_ROLES.ADMIN && staff_id ? staff_id : req.user.id;
 
         const { data, error } = await supabaseAdmin
             .from(TABLES.AVAILABLE_SLOTS)
             .insert({
-                staff_id: req.user.id,
+                staff_id: targetStaffId,
                 appointment_type_id,
                 start_time,
                 end_time,
@@ -440,6 +476,45 @@ app.post('/api/available-slots', authenticateUser, requireRole([USER_ROLES.STAFF
     }
 });
 
+// Delete available slot (staff owner or admin)
+app.delete('/api/available-slots/:id', authenticateUser, requireRole([USER_ROLES.STAFF, USER_ROLES.ADMIN]), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: slot, error: slotError } = await supabaseAdmin
+            .from(TABLES.AVAILABLE_SLOTS)
+            .select('id, staff_id, is_booked')
+            .eq('id', id)
+            .single();
+
+        if (slotError || !slot) {
+            return res.status(404).json({ message: 'Slot not found' });
+        }
+
+        if (req.user.role !== USER_ROLES.ADMIN && slot.staff_id !== req.user.id) {
+            return res.status(403).json({ message: 'Unauthorized to delete this slot' });
+        }
+
+        if (slot.is_booked) {
+            return res.status(409).json({ message: 'Cannot delete a booked slot' });
+        }
+
+        const { error: deleteError } = await supabaseAdmin
+            .from(TABLES.AVAILABLE_SLOTS)
+            .delete()
+            .eq('id', id);
+
+        if (deleteError) {
+            return res.status(500).json({ message: 'Failed to delete slot' });
+        }
+
+        res.json({ message: 'Slot deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting available slot:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // =====================================================
 // APPOINTMENTS ROUTES
 // =====================================================
@@ -447,6 +522,14 @@ app.post('/api/available-slots', authenticateUser, requireRole([USER_ROLES.STAFF
 // Get user's appointments
 app.get('/api/appointments', authenticateUser, async (req, res) => {
     try {
+        const normalizeStatus = (rawStatus) => {
+            if (!rawStatus) return null;
+            const value = String(rawStatus).toLowerCase();
+            if (value === 'approved') return APPOINTMENT_STATUS.CONFIRMED;
+            if (value === 'declined') return APPOINTMENT_STATUS.CANCELLED;
+            return value;
+        };
+
         let query = supabaseAdmin
             .from(TABLES.APPOINTMENTS)
             .select(`
@@ -455,6 +538,11 @@ app.get('/api/appointments', authenticateUser, async (req, res) => {
                 clients:client_id(name, email, phone),
                 staff:staff_id(name, email)
             `);
+
+        const requestedStatus = normalizeStatus(req.query.status);
+        if (requestedStatus) {
+            query = query.eq('status', requestedStatus);
+        }
 
         // Filter based on user role
         if (req.user.role === USER_ROLES.CLIENT) {
@@ -597,20 +685,49 @@ app.post('/api/appointments', authenticateUser, validateAppointment, async (req,
 });
 
 // Update appointment status (staff/admin only)
-app.patch('/api/appointments/:id/status', authenticateUser, requireRole([USER_ROLES.STAFF, USER_ROLES.ADMIN]), async (req, res) => {
+const updateAppointmentStatusHandler = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, staff_notes } = req.body;
+        const normalizeStatus = (rawStatus) => {
+            if (!rawStatus) return null;
+            const value = String(rawStatus).toLowerCase();
+            if (value === 'approved') return APPOINTMENT_STATUS.CONFIRMED;
+            if (value === 'declined') return APPOINTMENT_STATUS.CANCELLED;
+            return value;
+        };
 
-        if (!Object.values(APPOINTMENT_STATUS).includes(status)) {
+        const requestedStatus = normalizeStatus(req.body.status);
+
+        const { data: existingAppointment, error: existingError } = await supabaseAdmin
+            .from(TABLES.APPOINTMENTS)
+            .select('id, client_id, staff_id, slot_id, status')
+            .eq('id', id)
+            .single();
+
+        if (existingError || !existingAppointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        const isAdmin = req.user.role === USER_ROLES.ADMIN;
+        const isStaffOwner = req.user.role === USER_ROLES.STAFF && existingAppointment.staff_id === req.user.id;
+        const isClientOwner = req.user.role === USER_ROLES.CLIENT && existingAppointment.client_id === req.user.id;
+
+        if (!isAdmin && !isStaffOwner && !isClientOwner) {
+            return res.status(403).json({ message: 'Unauthorized to update this appointment' });
+        }
+
+        if (isClientOwner && requestedStatus !== APPOINTMENT_STATUS.CANCELLED) {
+            return res.status(403).json({ message: 'Clients can only cancel their appointments' });
+        }
+
+        if (!Object.values(APPOINTMENT_STATUS).includes(requestedStatus)) {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
-        const updateData = { status };
-        if (staff_notes) updateData.staff_notes = staff_notes;
-        if (status === APPOINTMENT_STATUS.CONFIRMED) updateData.confirmed_at = new Date().toISOString();
-        if (status === APPOINTMENT_STATUS.CANCELLED) updateData.cancelled_at = new Date().toISOString();
-        if (status === APPOINTMENT_STATUS.COMPLETED) updateData.completed_at = new Date().toISOString();
+        const updateData = { status: requestedStatus };
+        if (requestedStatus === APPOINTMENT_STATUS.CONFIRMED) updateData.confirmed_at = new Date().toISOString();
+        if (requestedStatus === APPOINTMENT_STATUS.CANCELLED) updateData.cancelled_at = new Date().toISOString();
+        if (requestedStatus === APPOINTMENT_STATUS.COMPLETED) updateData.completed_at = new Date().toISOString();
 
         const { data, error } = await supabaseAdmin
             .from(TABLES.APPOINTMENTS)
@@ -623,12 +740,20 @@ app.patch('/api/appointments/:id/status', authenticateUser, requireRole([USER_RO
             return res.status(500).json({ message: 'Failed to update appointment status' });
         }
 
+        if (requestedStatus === APPOINTMENT_STATUS.CANCELLED && existingAppointment.slot_id) {
+            await supabaseAdmin.rpc('cancel_booking', { slot_id: existingAppointment.slot_id });
+        }
+
         res.json(data);
     } catch (error) {
         console.error('Error updating appointment status:', error);
         res.status(500).json({ message: 'Server error' });
     }
-});
+};
+
+// Update appointment status (compatible with both legacy and new frontend calls)
+app.patch('/api/appointments/:id/status', authenticateUser, updateAppointmentStatusHandler);
+app.put('/api/appointments/:id', authenticateUser, updateAppointmentStatusHandler);
 
 // =====================================================
 // VIDEO VISITS ROUTES

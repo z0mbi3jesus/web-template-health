@@ -415,8 +415,8 @@ async function cancelAppointment(appointmentId) {
     }
 
     try {
-        await apiRequest(`/appointments/${appointmentId}`, {
-            method: 'PUT',
+        await apiRequest(`/appointments/${appointmentId}/status`, {
+            method: 'PATCH',
             body: JSON.stringify({ status: 'cancelled' })
         });
 

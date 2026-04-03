@@ -537,15 +537,15 @@
 
         // Update user info display
         function updateUserInfo() {
-            userName.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
+            userName.textContent = currentUser.name || currentUser.email || 'User';
             userRole.textContent = `(${currentUser.role})`;
         }
 
         // Load appointment types
         async function loadAppointmentTypes() {
             try {
-                const response = await apiCall('/timeslots/appointment-types');
-                appointmentTypes = response;
+                const response = await apiCall('/appointment-types');
+                appointmentTypes = Array.isArray(response) ? response : (response.appointmentTypes || []);
                 displayAppointmentTypes();
                 populateAppointmentTypeSelects();
             } catch (error) {
@@ -556,8 +556,8 @@
         // Load staff
         async function loadStaff() {
             try {
-                const response = await apiCall('/timeslots/staff');
-                staff = response;
+                const response = await apiCall('/staff');
+                staff = Array.isArray(response) ? response : [];
                 displayStaff();
                 populateStaffSelects();
             } catch (error) {
@@ -568,8 +568,8 @@
         // Load time slots
         async function loadTimeSlots() {
             try {
-                const response = await apiCall('/timeslots');
-                timeSlots = response;
+                const response = await apiCall('/available-slots');
+                timeSlots = Array.isArray(response) ? response : [];
                 displayTimeSlots();
             } catch (error) {
                 document.getElementById('timeSlotsList').innerHTML = '<p style="color: #e53e3e;">Failed to load time slots</p>';
@@ -579,7 +579,7 @@
         async function loadAppointments() {
             try {
                 const response = await apiCall('/appointments');
-                appointments = response.appointments || [];
+                appointments = Array.isArray(response) ? response : (response.appointments || []);
                 displayAppointments();
             } catch (error) {
                 document.getElementById('appointmentsList').innerHTML = '<p style="color: #e53e3e;">Failed to load appointments</p>';
@@ -645,8 +645,8 @@
 
             container.innerHTML = staff.map(member => `
                 <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">
-                    <strong>${member.first_name} ${member.last_name}</strong><br>
-                    <small>${member.department || 'N/A'} - ${member.specialization || 'General'}</small>
+                    <strong>${member.name || member.email}</strong><br>
+                    <small>${member.role || 'staff'}${member.email ? ` - ${member.email}` : ''}</small>
                 </div>
             `).join('');
         }
@@ -670,9 +670,9 @@
             container.innerHTML = filteredSlots.map(slot => `
                 <div class="slot-item">
                     <div class="slot-info">
-                        <strong>${slot.staff_name}</strong><br>
-                        <small>${days[slot.day_of_week]} ${slot.start_time}-${slot.end_time}</small><br>
-                        <small>${slot.appointment_type_name} (${slot.recurring ? 'Recurring' : 'One-time'})</small>
+                        <strong>${slot.users?.name || 'Provider'}</strong><br>
+                        <small>${new Date(slot.start_time).toLocaleDateString()} ${new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}-${new Date(slot.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small><br>
+                        <small>${slot.appointment_types?.name || 'Appointment'} (${days[new Date(slot.start_time).getDay()]})</small>
                     </div>
                     <div class="slot-actions">
                         <button class="btn btn-small btn-danger" onclick="deleteTimeSlot('${slot.id}')">Delete</button>
@@ -690,31 +690,36 @@
             }
 
             container.innerHTML = appointments.map(appt => {
-                const clientName = `${appt.client_first_name || ''} ${appt.client_last_name || ''}`.trim() || 'Client';
-                const staffName = `${appt.staff_first_name || ''} ${appt.staff_last_name || ''}`.trim() || 'Unassigned';
+                const clientName = appt.clients?.name || 'Client';
+                const staffName = appt.staff?.name || 'Unassigned';
+                const appointmentTypeName = appt.appointment_types?.name || 'Appointment';
                 const status = appt.status || 'pending';
-                const statusColor = status === 'approved'
+                const statusColor = status === 'confirmed'
                     ? '#38A169'
-                    : status === 'declined' || status === 'cancelled'
+                    : status === 'cancelled'
                         ? '#E53E3E'
                         : status === 'completed'
                             ? '#3182CE'
                             : '#B7791F';
 
+                const dateLabel = appt.start_time ? new Date(appt.start_time).toLocaleDateString() : 'Unknown date';
+                const startLabel = appt.start_time ? new Date(appt.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+                const endLabel = appt.end_time ? new Date(appt.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+
                 const canApprove = status === 'pending';
                 const canDecline = status === 'pending';
-                const canComplete = status === 'approved';
-                const canCancel = status === 'pending' || status === 'approved';
+                const canComplete = status === 'confirmed';
+                const canCancel = status === 'pending' || status === 'confirmed';
 
                 return `
                     <div class="slot-item" style="align-items: flex-start;">
                         <div class="slot-info">
-                            <strong>${appt.appointment_date} ${appt.start_time} - ${appt.end_time}</strong><br>
-                            <small>${appt.appointment_type_name || 'Appointment'} | Client: ${clientName} | Provider: ${staffName}</small><br>
+                            <strong>${dateLabel} ${startLabel} - ${endLabel}</strong><br>
+                            <small>${appointmentTypeName} | Client: ${clientName} | Provider: ${staffName}</small><br>
                             <small style="font-weight:700; color:${statusColor}; text-transform: capitalize;">Status: ${status.replace('_', ' ')}</small>
                         </div>
                         <div class="slot-actions">
-                            ${canApprove ? `<button class="btn btn-small" onclick="updateAppointmentStatus('${appt.id}', 'approved')">Approve</button>` : ''}
+                            ${canApprove ? `<button class="btn btn-small" onclick="updateAppointmentStatus('${appt.id}', 'confirmed')">Approve</button>` : ''}
                             ${canDecline ? `<button class="btn btn-small btn-danger" onclick="declineAppointment('${appt.id}')">Decline</button>` : ''}
                             ${canComplete ? `<button class="btn btn-small btn-secondary" onclick="updateAppointmentStatus('${appt.id}', 'completed')">Complete</button>` : ''}
                             ${canCancel ? `<button class="btn btn-small btn-danger" onclick="updateAppointmentStatus('${appt.id}', 'cancelled')">Cancel</button>` : ''}
@@ -753,9 +758,24 @@
                 
                 select.innerHTML = defaultOption +
                     staff.map(member => 
-                        `<option value="${member.id}">${member.first_name} ${member.last_name} - ${member.department || 'N/A'}</option>`
+                        `<option value="${member.id}">${member.name || member.email} - ${member.role || 'staff'}</option>`
                     ).join('');
             });
+        }
+
+        function nextDateForDay(dayOfWeek) {
+            const now = new Date();
+            const next = new Date(now);
+            const delta = (dayOfWeek - now.getDay() + 7) % 7;
+            next.setDate(now.getDate() + (delta === 0 ? 7 : delta));
+            return next;
+        }
+
+        function toIsoDateTime(baseDate, hhmm) {
+            const [h, m] = String(hhmm || '').split(':').map(Number);
+            const dt = new Date(baseDate);
+            dt.setHours(h || 0, m || 0, 0, 0);
+            return dt.toISOString();
         }
 
         // Setup form handlers
@@ -764,17 +784,17 @@
             document.getElementById('addSlotForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
+                const dayOfWeek = parseInt(formData.get('day_of_week'), 10);
+                const baseDate = nextDateForDay(dayOfWeek);
                 const slotData = {
                     staff_id: formData.get('staff_id'),
                     appointment_type_id: formData.get('appointment_type_id'),
-                    start_time: formData.get('start_time'),
-                    end_time: formData.get('end_time'),
-                    day_of_week: parseInt(formData.get('day_of_week')),
-                    is_recurring: formData.get('is_recurring') === 'on'
+                    start_time: toIsoDateTime(baseDate, formData.get('start_time')),
+                    end_time: toIsoDateTime(baseDate, formData.get('end_time'))
                 };
 
                 try {
-                    await apiCall('/timeslots', {
+                    await apiCall('/available-slots', {
                         method: 'POST',
                         body: JSON.stringify(slotData)
                     });
@@ -806,21 +826,23 @@
                     return;
                 }
 
-                const scheduleData = {
-                    staff_id: formData.get('staff_id'),
-                    appointment_type_id: formData.get('appointment_type_id'),
-                    start_time: formData.get('start_time'),
-                    end_time: formData.get('end_time'),
-                    days: selectedDays
-                };
-
                 try {
-                    const result = await apiCall('/timeslots/weekly-schedule', {
-                        method: 'POST',
-                        body: JSON.stringify(scheduleData)
-                    });
+                    let created = 0;
+                    for (const day of selectedDays) {
+                        const baseDate = nextDateForDay(day);
+                        await apiCall('/available-slots', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                staff_id: formData.get('staff_id'),
+                                appointment_type_id: formData.get('appointment_type_id'),
+                                start_time: toIsoDateTime(baseDate, formData.get('start_time')),
+                                end_time: toIsoDateTime(baseDate, formData.get('end_time'))
+                            })
+                        });
+                        created += 1;
+                    }
                     
-                    showMessage(statusMessage, `Weekly schedule created! Added ${result.created} time slots.`, 'success');
+                    showMessage(statusMessage, `Weekly schedule created! Added ${created} time slots.`, 'success');
                     e.target.reset();
                     // Reset checkboxes to default (Mon-Fri)
                     ['day1', 'day2', 'day3', 'day4', 'day5'].forEach(id => 
@@ -841,11 +863,11 @@
 
         async function updateAppointmentStatus(appointmentId, status, reason = '') {
             try {
-                await apiCall(`/appointments/${appointmentId}`, {
-                    method: 'PUT',
+                await apiCall(`/appointments/${appointmentId}/status`, {
+                    method: 'PATCH',
                     body: JSON.stringify({
                         status,
-                        reason_for_decline: reason || undefined
+                        staff_notes: reason || undefined
                     })
                 });
 
@@ -858,7 +880,7 @@
 
         async function declineAppointment(appointmentId) {
             const reason = prompt('Reason for decline (optional):', '');
-            await updateAppointmentStatus(appointmentId, 'declined', reason || '');
+            await updateAppointmentStatus(appointmentId, 'cancelled', reason || '');
         }
 
         // Delete time slot
@@ -868,7 +890,7 @@
             }
 
             try {
-                await apiCall(`/timeslots/${slotId}`, { method: 'DELETE' });
+                await apiCall(`/available-slots/${slotId}`, { method: 'DELETE' });
                 showMessage(statusMessage, 'Time slot deleted successfully!', 'success');
                 loadTimeSlots();
             } catch (error) {
