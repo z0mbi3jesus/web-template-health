@@ -212,6 +212,36 @@
             padding: 20px;
             color: #718096;
         }
+
+        .queue-toolbar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .queue-toolbar .form-group {
+            margin-bottom: 0;
+            min-width: 220px;
+        }
+
+        .queue-metrics {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .metric-pill {
+            background: #EDF2F7;
+            border: 1px solid #E2E8F0;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #2D3748;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -393,6 +423,23 @@
             <div class="card">
                 <h3>🗓️ Appointment Queue</h3>
                 <p style="margin-bottom: 12px; color: #4A5568;">Review patient requests and update appointment status.</p>
+                <div class="queue-toolbar">
+                    <div class="form-group">
+                        <label for="appointmentQueueFilter">Queue Filter</label>
+                        <select id="appointmentQueueFilter">
+                            <option value="all">All Appointments</option>
+                            <option value="today_pending">Today + Pending</option>
+                            <option value="today">Today</option>
+                            <option value="pending">Pending Approval</option>
+                            <option value="confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="queue-metrics">
+                    <span class="metric-pill" id="metricToday">Today: 0</span>
+                    <span class="metric-pill" id="metricPending">Pending: 0</span>
+                    <span class="metric-pill" id="metricConfirmedToday">Confirmed Today: 0</span>
+                </div>
                 <div id="appointmentsList" class="slot-list loading">Loading appointments...</div>
             </div>
         </div>
@@ -409,6 +456,7 @@
         let staff = [];
         let timeSlots = [];
         let appointments = [];
+        let appointmentQueueFilter = 'all';
 
         // DOM Elements
         const loginSection = document.getElementById('loginSection');
@@ -420,6 +468,7 @@
         const userName = document.getElementById('userName');
         const userRole = document.getElementById('userRole');
         const logoutBtn = document.getElementById('logoutBtn');
+        const appointmentQueueFilterEl = document.getElementById('appointmentQueueFilter');
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
@@ -533,6 +582,20 @@
                 loadAppointments()
             ]);
             setupFormHandlers();
+            applyQueueDefaultsByRole();
+        }
+
+        function applyQueueDefaultsByRole() {
+            if (currentUser?.role === 'staff') {
+                appointmentQueueFilter = 'today_pending';
+                appointmentQueueFilterEl.value = 'today_pending';
+                displayAppointments();
+                return;
+            }
+
+            appointmentQueueFilter = 'all';
+            appointmentQueueFilterEl.value = 'all';
+            displayAppointments();
         }
 
         // Update user info display
@@ -683,13 +746,41 @@
 
         function displayAppointments() {
             const container = document.getElementById('appointmentsList');
+            const todayMetricEl = document.getElementById('metricToday');
+            const pendingMetricEl = document.getElementById('metricPending');
+            const confirmedTodayMetricEl = document.getElementById('metricConfirmedToday');
 
-            if (!appointments.length) {
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const withDates = appointments.map((appt) => {
+                const isoDate = appt.start_time ? new Date(appt.start_time).toISOString().slice(0, 10) : null;
+                return { appt, isoDate };
+            });
+
+            const todayCount = withDates.filter((item) => item.isoDate === todayIso).length;
+            const pendingCount = appointments.filter((appt) => (appt.status || 'pending') === 'pending').length;
+            const confirmedTodayCount = withDates.filter((item) => item.isoDate === todayIso && (item.appt.status || 'pending') === 'confirmed').length;
+
+            todayMetricEl.textContent = `Today: ${todayCount}`;
+            pendingMetricEl.textContent = `Pending: ${pendingCount}`;
+            confirmedTodayMetricEl.textContent = `Confirmed Today: ${confirmedTodayCount}`;
+
+            const filteredAppointments = appointments.filter((appt) => {
+                const status = appt.status || 'pending';
+                const apptDate = appt.start_time ? new Date(appt.start_time).toISOString().slice(0, 10) : null;
+
+                if (appointmentQueueFilter === 'today_pending') return apptDate === todayIso && status === 'pending';
+                if (appointmentQueueFilter === 'today') return apptDate === todayIso;
+                if (appointmentQueueFilter === 'pending') return status === 'pending';
+                if (appointmentQueueFilter === 'confirmed') return status === 'confirmed';
+                return true;
+            });
+
+            if (!filteredAppointments.length) {
                 container.innerHTML = '<p>No appointments found</p>';
                 return;
             }
 
-            container.innerHTML = appointments.map(appt => {
+            container.innerHTML = filteredAppointments.map(appt => {
                 const clientName = appt.clients?.name || 'Client';
                 const staffName = appt.staff?.name || 'Unassigned';
                 const appointmentTypeName = appt.appointment_types?.name || 'Appointment';
@@ -720,6 +811,7 @@
                         </div>
                         <div class="slot-actions">
                             ${canApprove ? `<button class="btn btn-small" onclick="updateAppointmentStatus('${appt.id}', 'confirmed')">Approve</button>` : ''}
+                            ${canApprove ? `<button class="btn btn-small" onclick="approveAndStartVideo('${appt.id}')">Approve + Start Video</button>` : ''}
                             ${canDecline ? `<button class="btn btn-small btn-danger" onclick="declineAppointment('${appt.id}')">Decline</button>` : ''}
                             ${canComplete ? `<button class="btn btn-small btn-secondary" onclick="updateAppointmentStatus('${appt.id}', 'completed')">Complete</button>` : ''}
                             ${canCancel ? `<button class="btn btn-small btn-danger" onclick="updateAppointmentStatus('${appt.id}', 'cancelled')">Cancel</button>` : ''}
@@ -859,9 +951,13 @@
 
             // Filter change
             document.getElementById('slotStaffFilter').addEventListener('change', displayTimeSlots);
+            appointmentQueueFilterEl.addEventListener('change', (event) => {
+                appointmentQueueFilter = event.target.value;
+                displayAppointments();
+            });
         }
 
-        async function updateAppointmentStatus(appointmentId, status, reason = '') {
+        async function updateAppointmentStatus(appointmentId, status, reason = '', shouldRefresh = true) {
             try {
                 await apiCall(`/appointments/${appointmentId}/status`, {
                     method: 'PATCH',
@@ -872,9 +968,28 @@
                 });
 
                 showMessage(statusMessage, `Appointment updated to ${status}.`, 'success');
-                await loadAppointments();
+                if (shouldRefresh) {
+                    await loadAppointments();
+                }
             } catch (error) {
                 showMessage(statusMessage, `Failed to update appointment: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function approveAndStartVideo(appointmentId) {
+            try {
+                await updateAppointmentStatus(appointmentId, 'confirmed', '', false);
+
+                await apiCall('/video-visits', {
+                    method: 'POST',
+                    body: JSON.stringify({ appointmentId })
+                });
+
+                await loadAppointments();
+                window.location.href = `video-visit.html?appointmentId=${appointmentId}`;
+            } catch (error) {
+                showMessage(statusMessage, `Could not start video visit: ${error.message}`, 'error');
             }
         }
 
@@ -917,6 +1032,7 @@
         window.deleteTimeSlot = deleteTimeSlot;
         window.updateAppointmentStatus = updateAppointmentStatus;
         window.declineAppointment = declineAppointment;
+        window.approveAndStartVideo = approveAndStartVideo;
     </script>
 </body>
 </html>
