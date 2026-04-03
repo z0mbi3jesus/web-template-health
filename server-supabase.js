@@ -11,6 +11,9 @@ const { supabase, supabaseAdmin, TABLES, USER_ROLES, APPOINTMENT_STATUS } = requ
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const WHEREBY_API_KEY = process.env.WHEREBY_API_KEY;
+const WHEREBY_ORG_ID = process.env.WHEREBY_ORG_ID;
+const WHEREBY_API_BASE = process.env.WHEREBY_API_BASE || 'https://api.whereby.com';
 
 // =====================================================
 // MIDDLEWARE SETUP
@@ -113,6 +116,43 @@ const requireRole = (roles) => {
         next();
     };
 };
+
+const canAccessAppointment = (user, appointment) => {
+    if (!user || !appointment) return false;
+    if (user.role === USER_ROLES.ADMIN) return true;
+    if (user.role === USER_ROLES.STAFF) return appointment.staff_id === user.id;
+    return appointment.client_id === user.id;
+};
+
+async function generateWherebyAccessToken(roomId, user) {
+    if (!WHEREBY_API_KEY || !WHEREBY_ORG_ID) {
+        throw new Error('Whereby is not configured');
+    }
+
+    const response = await fetch(
+        `${WHEREBY_API_BASE}/v1/rest/organizations/${WHEREBY_ORG_ID}/rooms/${roomId}/accessTokens`,
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${WHEREBY_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userName: user.name || user.email || 'Participant',
+                userId: user.id,
+                expiresIn: 15 * 60
+            })
+        }
+    );
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Whereby token request failed: ${errorText || response.statusText}`);
+    }
+
+    const payload = await response.json();
+    return payload.accessToken;
+}
 
 // =====================================================
 // VALIDATION RULES
@@ -437,6 +477,53 @@ app.get('/api/appointments', authenticateUser, async (req, res) => {
     }
 });
 
+// Get single appointment details
+app.get('/api/appointments/:id', authenticateUser, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: appointment, error } = await supabaseAdmin
+            .from(TABLES.APPOINTMENTS)
+            .select(`
+                id,
+                client_id,
+                staff_id,
+                status,
+                start_time,
+                end_time,
+                appointment_types:appointment_type_id(name, duration_minutes),
+                staff:staff_id(name, email),
+                clients:client_id(name, email)
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error || !appointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        if (!canAccessAppointment(req.user, appointment)) {
+            return res.status(403).json({ message: 'Unauthorized to access this appointment' });
+        }
+
+        res.json({
+            id: appointment.id,
+            status: appointment.status,
+            scheduled_time: appointment.start_time,
+            start_time: appointment.start_time,
+            end_time: appointment.end_time,
+            type: appointment.appointment_types || null,
+            staff: appointment.staff || null,
+            client: appointment.clients || null,
+            staff_id: appointment.staff_id,
+            client_id: appointment.client_id
+        });
+    } catch (error) {
+        console.error('Error fetching appointment details:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Create appointment
 app.post('/api/appointments', authenticateUser, validateAppointment, async (req, res) => {
     try {
@@ -539,6 +626,204 @@ app.patch('/api/appointments/:id/status', authenticateUser, requireRole([USER_RO
         res.json(data);
     } catch (error) {
         console.error('Error updating appointment status:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// =====================================================
+// VIDEO VISITS ROUTES
+// =====================================================
+
+app.post('/api/video-visits', authenticateUser, requireRole([USER_ROLES.STAFF, USER_ROLES.ADMIN]), async (req, res) => {
+    try {
+        const { appointmentId } = req.body;
+
+        if (!appointmentId) {
+            return res.status(400).json({ message: 'appointmentId is required' });
+        }
+
+        const { data: appointment, error: appointmentError } = await supabaseAdmin
+            .from(TABLES.APPOINTMENTS)
+            .select('id, staff_id, client_id, status')
+            .eq('id', appointmentId)
+            .single();
+
+        if (appointmentError || !appointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        if (req.user.role !== USER_ROLES.ADMIN && appointment.staff_id !== req.user.id) {
+            return res.status(403).json({ message: 'Unauthorized to create video visit for this appointment' });
+        }
+
+        const { data: existing } = await supabaseAdmin
+            .from('video_visits')
+            .select('*')
+            .eq('appointment_id', appointmentId)
+            .in('status', ['pending', 'active'])
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            return res.json({ videoVisit: existing[0], message: 'Existing video visit found' });
+        }
+
+        const roomId = `apt-${appointmentId.substring(0, 8)}-${Date.now()}`;
+
+        const { data: videoVisit, error: insertError } = await supabaseAdmin
+            .from('video_visits')
+            .insert({
+                appointment_id: appointmentId,
+                created_by: req.user.id,
+                room_id: roomId,
+                status: 'pending'
+            })
+            .select('*')
+            .single();
+
+        if (insertError || !videoVisit) {
+            return res.status(500).json({ message: 'Failed to create video visit' });
+        }
+
+        res.status(201).json({ videoVisit });
+    } catch (error) {
+        console.error('Error creating video visit:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.get('/api/video-visits/:appointmentId', authenticateUser, async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+
+        const { data: appointment, error: appointmentError } = await supabaseAdmin
+            .from(TABLES.APPOINTMENTS)
+            .select('id, staff_id, client_id')
+            .eq('id', appointmentId)
+            .single();
+
+        if (appointmentError || !appointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        if (!canAccessAppointment(req.user, appointment)) {
+            return res.status(403).json({ message: 'Unauthorized to access this video visit' });
+        }
+
+        const { data: videoVisits, error: videoError } = await supabaseAdmin
+            .from('video_visits')
+            .select('*')
+            .eq('appointment_id', appointmentId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (videoError) {
+            return res.status(500).json({ message: 'Failed to fetch video visit' });
+        }
+
+        if (!videoVisits || videoVisits.length === 0) {
+            return res.status(404).json({ message: 'No video visit found for this appointment' });
+        }
+
+        res.json({ videoVisit: videoVisits[0] });
+    } catch (error) {
+        console.error('Error fetching video visit:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.post('/api/video-visits/:videoVisitId/token', authenticateUser, async (req, res) => {
+    try {
+        const { videoVisitId } = req.params;
+
+        const { data: videoVisit, error: videoError } = await supabaseAdmin
+            .from('video_visits')
+            .select('id, appointment_id, room_id, created_by, status')
+            .eq('id', videoVisitId)
+            .single();
+
+        if (videoError || !videoVisit) {
+            return res.status(404).json({ message: 'Video visit not found' });
+        }
+
+        const { data: appointment, error: appointmentError } = await supabaseAdmin
+            .from(TABLES.APPOINTMENTS)
+            .select('id, staff_id, client_id')
+            .eq('id', videoVisit.appointment_id)
+            .single();
+
+        if (appointmentError || !appointment) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
+
+        if (!canAccessAppointment(req.user, appointment)) {
+            return res.status(403).json({ message: 'Unauthorized to access this video token' });
+        }
+
+        const token = await generateWherebyAccessToken(videoVisit.room_id, req.user);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+        await supabaseAdmin
+            .from('video_visits')
+            .update({
+                access_token: token,
+                token_expires_at: expiresAt,
+                status: 'active',
+                started_at: new Date().toISOString()
+            })
+            .eq('id', videoVisitId);
+
+        res.json({
+            token,
+            roomId: videoVisit.room_id,
+            expiresAt,
+            expiresIn: 15 * 60
+        });
+    } catch (error) {
+        console.error('Error creating video token:', error);
+        res.status(500).json({ message: error.message || 'Failed to generate video token' });
+    }
+});
+
+app.post('/api/video-visits/:videoVisitId/end', authenticateUser, requireRole([USER_ROLES.STAFF, USER_ROLES.ADMIN]), async (req, res) => {
+    try {
+        const { videoVisitId } = req.params;
+
+        const { data: videoVisit, error: videoError } = await supabaseAdmin
+            .from('video_visits')
+            .select('id, created_by, appointment_id')
+            .eq('id', videoVisitId)
+            .single();
+
+        if (videoError || !videoVisit) {
+            return res.status(404).json({ message: 'Video visit not found' });
+        }
+
+        const { data: appointment } = await supabaseAdmin
+            .from(TABLES.APPOINTMENTS)
+            .select('staff_id')
+            .eq('id', videoVisit.appointment_id)
+            .single();
+
+        const canEnd = req.user.role === USER_ROLES.ADMIN || videoVisit.created_by === req.user.id || appointment?.staff_id === req.user.id;
+        if (!canEnd) {
+            return res.status(403).json({ message: 'Unauthorized to end this video visit' });
+        }
+
+        const { data: updated, error: updateError } = await supabaseAdmin
+            .from('video_visits')
+            .update({ status: 'completed', ended_at: new Date().toISOString() })
+            .eq('id', videoVisitId)
+            .select('*')
+            .single();
+
+        if (updateError || !updated) {
+            return res.status(500).json({ message: 'Failed to end video visit' });
+        }
+
+        res.json({ videoVisit: updated, message: 'Video visit ended' });
+    } catch (error) {
+        console.error('Error ending video visit:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
