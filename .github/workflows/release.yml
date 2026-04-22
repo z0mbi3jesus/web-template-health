@@ -7,11 +7,6 @@ on:
         description: 'Version type (patch, minor, major)'
         required: true
         default: 'patch'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 jobs:
   release:
