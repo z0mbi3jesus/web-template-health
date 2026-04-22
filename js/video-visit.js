@@ -115,7 +115,7 @@ async function createVideoVisit() {
         state.roomId = response.videoVisit.room_id;
         state.status = response.videoVisit.status;
 
-        showAlert('✅ Video session ready. Patient has been notified.', 'info');
+        showAlert('Video session ready. Patient has been notified.', 'info');
         updateUIForStatus();
 
     } catch (error) {
@@ -129,7 +129,7 @@ async function createVideoVisit() {
  */
 async function joinVideoCall() {
     try {
-        showAlert('📹 Connecting to video...', 'info');
+        showAlert('Connecting to video...', 'info');
 
         // Request token from backend
         const response = await SupabaseAPI.makeRequest(`/api/video-visits/${state.videoVisitId}/token`, {
@@ -144,7 +144,7 @@ async function joinVideoCall() {
         
         state.status = 'active';
         updateUIForStatus();
-        showAlert('✅ Connected to video', 'info');
+        showAlert('Connected to video', 'info');
 
     } catch (error) {
         console.error('Join video error:', error);
@@ -206,7 +206,7 @@ async function loadWherebyVideo(tokenResponse) {
             // Fallback display
             container.innerHTML = `
                 <div style="color: white; text-align: center; padding: 100px 20px;">
-                    <h2>❌ Video Connection Failed</h2>
+                    <h2>Video Connection Failed</h2>
                     <p>${error.message}</p>
                     <button onclick="location.reload()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
                         Retry
@@ -252,7 +252,7 @@ async function endVideoVisit() {
 
         state.status = 'ended';
         updateUIForStatus();
-        showAlert('✅ Video visit ended', 'info');
+        showAlert('Video visit ended', 'info');
 
     } catch (error) {
         console.error('End video error:', error);
@@ -271,7 +271,7 @@ function updateUIForStatus() {
     const statusMap = {
         'pending': { icon: '⏳', text: 'Waiting for provider', indicator: 'status-waiting' },
         'active': { icon: '🟢', text: 'In progress', indicator: 'status-active' },
-        'completed': { icon: '✅', text: 'Completed', indicator: 'status-ended' }
+        'completed': { icon: '', text: 'Completed', indicator: 'status-ended' }
     };
 
     const status = statusMap[state.status] || statusMap.pending;
@@ -289,7 +289,7 @@ function updateUIForStatus() {
         waitingEl.style.display = 'block';
     } else {
         controlsEl.style.display = 'none';
-        waitingEl.innerHTML = '<h2>✅ Visit Complete</h2><p>Thank you for using our secure video service.</p>';
+        waitingEl.innerHTML = '<h2>Visit Complete</h2><p>Thank you for using our secure video service.</p>';
     }
 }
 

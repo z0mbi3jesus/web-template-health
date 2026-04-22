@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
 
 const versionType = process.argv[2];
 if (!['patch', 'minor', 'major'].includes(versionType)) {
-    console.error('❌ Invalid version type. Use: patch, minor, or major');
+    console.error('Invalid version type. Use: patch, minor, or major');
     process.exit(1);
 }
 
@@ -37,13 +37,13 @@ switch (versionType) {
         break;
 }
 
-console.log(`📦 Releasing ${pkg.name}`);
+console.log(`Releasing ${pkg.name}`);
 console.log(`   ${pkg.version} → ${newVersion}`);
 
 // Update package.json
 pkg.version = newVersion;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-console.log('✅ Updated package.json');
+console.log('Updated package.json');
 
 // Update CHANGELOG.md
 const today = new Date().toISOString().split('T')[0];
@@ -54,23 +54,23 @@ const updatedChangelog = changelogContent
         `## [Unreleased]\n\n## [${newVersion}] - ${today}`
     );
 fs.writeFileSync(changelogPath, updatedChangelog);
-console.log('✅ Updated CHANGELOG.md');
+console.log('Updated CHANGELOG.md');
 
 // Commit changes
 try {
     execSync(`git add package.json CHANGELOG.md`, { stdio: 'inherit' });
     execSync(`git commit -m "chore: release v${newVersion}"`, { stdio: 'inherit' });
-    console.log('✅ Created commit');
+    console.log('Created commit');
 
     // Create git tag
     execSync(`git tag -a v${newVersion} -m "Release version ${newVersion}"`, { stdio: 'inherit' });
-    console.log(`✅ Created git tag v${newVersion}`);
+    console.log(`Created git tag v${newVersion}`);
 
     // Show next steps
-    console.log(`\n🚀 Release ready! Next steps:`);
+    console.log(`\nRelease ready! Next steps:`);
     console.log(`   git push origin main --tags`);
     console.log(`   Then create a release on GitHub`);
 } catch (error) {
-    console.error('❌ Error during release:', error.message);
+    console.error('Error during release:', error.message);
     process.exit(1);
 }

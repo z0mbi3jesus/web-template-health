@@ -17,7 +17,7 @@ let supabaseClient;
 // Initialize Supabase client when script loads
 (function initSupabase() {
     if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
-        console.error('❌ Missing frontend Supabase configuration. Set window.__APP_CONFIG__.SUPABASE_URL and SUPABASE_ANON_KEY.');
+        console.error('Missing frontend Supabase configuration. Set window.__APP_CONFIG__.SUPABASE_URL and SUPABASE_ANON_KEY.');
         return;
     }
 
@@ -28,9 +28,9 @@ let supabaseClient;
         );
         // Attach to window for global access
         window.supabaseClient = supabaseClient;
-        console.log('✅ Supabase client initialized');
+        console.log('Supabase client initialized');
     } else {
-        console.warn('⚠️ Supabase library not loaded. Please include the CDN script.');
+        console.warn('Supabase library not loaded. Please include the CDN script.');
     }
 })();
 

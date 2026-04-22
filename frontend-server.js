@@ -18,7 +18,7 @@ app.get('/admin', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🌐 Frontend server running at http://localhost:${PORT}`);
-    console.log('📱 Main site: http://localhost:3000');
-    console.log('🔧 Admin panel: http://localhost:3000/admin');
+    console.log(`Frontend server running at http://localhost:${PORT}`);
+    console.log('Main site: http://localhost:3000');
+    console.log('Admin panel: http://localhost:3000/admin');
 });

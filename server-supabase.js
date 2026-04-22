@@ -1032,9 +1032,9 @@ app.use((req, res) => {
 // =====================================================
 
 app.listen(PORT, () => {
-    console.log(`🏥 Healthcare Appointment System (Supabase) running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:8081'}`);
+    console.log(`Healthcare Appointment System (Supabase) running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:8081'}`);
 });
 
 module.exports = app;

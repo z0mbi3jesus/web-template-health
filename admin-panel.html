@@ -247,7 +247,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏥 Health Calendar</h1>
+            <h1>Health Calendar</h1>
             <p>Administrative Time Slot Management System</p>
         </div>
 
@@ -285,20 +285,20 @@
             <div class="grid">
                 <!-- Appointment Types -->
                 <div class="card">
-                    <h3>📋 Appointment Types</h3>
+                    <h3>Appointment Types</h3>
                     <div id="appointmentTypes" class="loading">Loading appointment types...</div>
                 </div>
 
                 <!-- Staff Members -->
                 <div class="card">
-                    <h3>👥 Staff Members</h3>
+                    <h3>Staff Members</h3>
                     <div id="staffList" class="loading">Loading staff members...</div>
                 </div>
             </div>
 
             <!-- Add New Time Slot -->
             <div class="card">
-                <h3>➕ Add New Time Slot</h3>
+                <h3>Add New Time Slot</h3>
                 <form id="addSlotForm" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
                     <div class="form-group">
                         <label for="staffSelect">Staff Member</label>
@@ -347,7 +347,7 @@
 
             <!-- Bulk Weekly Schedule -->
             <div class="card">
-                <h3>📅 Create Weekly Schedule</h3>
+                <h3>Create Weekly Schedule</h3>
                 <form id="weeklyScheduleForm">
                     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 15px;">
                         <div class="form-group">
@@ -410,7 +410,7 @@
 
             <!-- Existing Time Slots -->
             <div class="card">
-                <h3>🕐 Existing Time Slots</h3>
+                <h3>Existing Time Slots</h3>
                 <div class="form-group">
                     <label for="slotStaffFilter">Filter by Staff Member</label>
                     <select id="slotStaffFilter">
@@ -421,7 +421,7 @@
             </div>
 
             <div class="card">
-                <h3>🗓️ Appointment Queue</h3>
+                <h3>Appointment Queue</h3>
                 <p style="margin-bottom: 12px; color: #4A5568;">Review patient requests and update appointment status.</p>
                 <div class="queue-toolbar">
                     <div class="form-group">
@@ -899,7 +899,7 @@
                     
                     // Check if it's a conflict error (409)
                     if (error.message.includes('overlaps') || error.message.includes('conflict')) {
-                        errorMessage = '⚠️ Time slot conflict detected!\n\nThis time overlaps with an existing appointment slot. Please:\n• Choose a different time\n• Check the "Existing Time Slots" section below\n• Filter by the staff member to see their current schedule';
+                        errorMessage = 'Time slot conflict detected!\n\nThis time overlaps with an existing appointment slot. Please:\n• Choose a different time\n• Check the "Existing Time Slots" section below\n• Filter by the staff member to see their current schedule';
                     }
                     
                     showMessage(statusMessage, errorMessage, 'error');

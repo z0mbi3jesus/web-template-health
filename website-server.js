@@ -13,6 +13,6 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🌐 Main website running at http://localhost:${PORT}`);
-    console.log('📱 This is the patient-facing website');
+    console.log(`Main website running at http://localhost:${PORT}`);
+    console.log('This is the patient-facing website');
 });

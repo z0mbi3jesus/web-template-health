@@ -1,14 +1,14 @@
-# 🏥 Healthcare Appointment System - Supabase Setup Guide
+# Healthcare Appointment System - Supabase Setup Guide
 
 This guide will walk you through setting up Supabase as the backend for your healthcare appointment management system.
 
-## 📋 Prerequisites
+## Prerequisites
 
 - A Supabase account (free tier available)
 - Node.js 16+ installed
 - Basic understanding of SQL
 
-## 🚀 Step 1: Create Supabase Project
+## Step 1: Create Supabase Project
 
 1. **Go to [Supabase](https://supabase.com)** and sign in/sign up
 2. **Click "New Project"**
@@ -20,7 +20,7 @@ This guide will walk you through setting up Supabase as the backend for your hea
 
 4. **Wait for project creation** (2-3 minutes)
 
-## 🔧 Step 2: Configure Database Schema
+## Step 2: Configure Database Schema
 
 1. **Go to the SQL Editor** in your Supabase dashboard
 2. **Copy the entire contents** of `database/schema.sql`
@@ -28,16 +28,16 @@ This guide will walk you through setting up Supabase as the backend for your hea
 4. **Verify tables were created** by checking the Table Editor
 
 The schema creates:
-- ✅ Users table (extends Supabase auth)
-- ✅ Appointment types
-- ✅ Available slots
-- ✅ Appointments
-- ✅ Notifications
-- ✅ Audit logging
-- ✅ Row Level Security (RLS) policies
-- ✅ Database functions for booking logic
+- Users table (extends Supabase auth)
+- Appointment types
+- Available slots
+- Appointments
+- Notifications
+- Audit logging
+- Row Level Security (RLS) policies
+- Database functions for booking logic
 
-## 🔑 Step 3: Get API Keys
+## Step 3: Get API Keys
 
 1. **Go to Settings > API** in your Supabase dashboard
 2. **Copy the following values:**
@@ -45,7 +45,7 @@ The schema creates:
    - `anon` key (public key)
    - `service_role` key (private key - keep secret!)
 
-## ⚙️ Step 4: Configure Environment Variables
+## Step 4: Configure Environment Variables
 
 1. **Copy `.env.example` to `.env`:**
    ```bash
@@ -69,7 +69,7 @@ The schema creates:
    FRONTEND_URL=http://localhost:8081
    ```
 
-## 📦 Step 5: Install Dependencies
+## Step 5: Install Dependencies
 
 ```bash
 npm install
@@ -83,7 +83,7 @@ This installs:
 - `dotenv` - Environment variables
 - Additional security and validation packages
 
-## 🏃‍♂️ Step 6: Start the Application
+## Step 6: Start the Application
 
 1. **Start the Supabase-powered backend:**
    ```bash
@@ -103,7 +103,7 @@ This installs:
    - Backend: http://localhost:3001/health
    - Frontend: http://localhost:8081
 
-## 🔐 Step 7: Configure Authentication
+## Step 7: Configure Authentication
 
 ### Frontend Integration
 
@@ -123,13 +123,13 @@ To promote users to staff/admin:
 1. Go to Supabase dashboard > Table Editor > users
 2. Find the user and edit their `role` field
 
-## 📊 Step 8: Database Features
+## Step 8: Database Features
 
 ### Row Level Security (RLS)
-- ✅ Users can only see their own data
-- ✅ Staff can manage their appointments
-- ✅ Admins have full access
-- ✅ Public can view available appointment types
+- Users can only see their own data
+- Staff can manage their appointments
+- Admins have full access
+- Public can view available appointment types
 
 ### Business Logic Functions
 - `is_slot_available()` - Check if time slot can be booked
@@ -141,7 +141,7 @@ To promote users to staff/admin:
 - Includes user ID, operation type, and data changes
 - Viewable by admins for compliance
 
-## 🔄 Step 9: Migration from Local PostgreSQL
+## Step 9: Migration from Local PostgreSQL
 
 If you have existing data, you can migrate:
 
@@ -154,7 +154,7 @@ If you have existing data, you can migrate:
    - Use the SQL Editor to run data imports
    - Or use the CSV import feature in Table Editor
 
-## 🚀 Step 10: Production Deployment
+## Step 10: Production Deployment
 
 ### Backend Deployment Options:
 - **Vercel:** Deploy `server-supabase.js` as serverless functions
@@ -171,7 +171,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_production_service_key
 FRONTEND_URL=https://your-domain.com
 ```
 
-## 📈 Step 11: Scaling and Monitoring
+## Step 11: Scaling and Monitoring
 
 ### Supabase Features:
 - **Real-time:** Enable for live appointment updates
@@ -184,7 +184,7 @@ FRONTEND_URL=https://your-domain.com
 - **Logs:** Real-time application logs
 - **Alerts:** Set up notifications for errors
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues:
 
@@ -214,18 +214,18 @@ curl -X POST http://localhost:3001/api/auth/login \
   -d '{"email":"test@example.com","password":"password123"}'
 ```
 
-## 🎯 Next Steps
+## Next Steps
 
 After Supabase setup:
-1. ✅ Test user registration and login
-2. ✅ Create appointment types via admin panel
-3. ✅ Add time slots for staff
-4. ✅ Test appointment booking flow
-5. 🔄 Set up email/SMS notifications
-6. 🔄 Add real-time features
-7. 🔄 Deploy to production
+1. Test user registration and login
+2. Create appointment types via admin panel
+3. Add time slots for staff
+4. Test appointment booking flow
+5. Set up email/SMS notifications
+6. Add real-time features
+7. Deploy to production
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [Supabase Documentation](https://supabase.com/docs)
 - [Row Level Security Guide](https://supabase.com/docs/guides/auth/row-level-security)
@@ -234,4 +234,4 @@ After Supabase setup:
 
 ---
 
-**🎉 Congratulations!** Your healthcare appointment system is now powered by Supabase with enterprise-grade security, scalability, and real-time capabilities!
+**Congratulations!** Your healthcare appointment system is now powered by Supabase with enterprise-grade security, scalability, and real-time capabilities!

@@ -1,7 +1,7 @@
 const { query: dbQuery } = require('./backend/config/database');
 
 async function showExistingSlots() {
-    console.log('📋 Current Time Slots in Database:\n');
+    console.log('Current Time Slots in Database:\n');
 
     try {
         const result = await dbQuery(`
@@ -31,7 +31,7 @@ async function showExistingSlots() {
         result.rows.forEach(slot => {
             if (slot.staff_name !== currentStaff) {
                 currentStaff = slot.staff_name;
-                console.log(`\n👨‍⚕️ ${currentStaff}:`);
+                console.log(`\n${currentStaff}:`);
             }
 
             const dayName = days[slot.day_of_week];
@@ -40,8 +40,8 @@ async function showExistingSlots() {
             console.log(`  • ${dayName} ${slot.start_time}-${slot.end_time} - ${slot.appointment_type} ${recurring}`);
         });
 
-        console.log(`\n📊 Total slots: ${result.rows.length}`);
-        console.log('\n💡 To avoid conflicts:');
+        console.log(`\nTotal slots: ${result.rows.length}`);
+        console.log('\nTo avoid conflicts:');
         console.log('   • Choose times that don\'t overlap with existing slots');
         console.log('   • Use different time ranges or different days');
         console.log('   • Delete conflicting slots first if you want to replace them');
