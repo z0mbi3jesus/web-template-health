@@ -936,48 +936,21 @@ async function handleSignin(form) {
             
             let userRole = 'client'; // Default role
             let userName = authResult.user.email;
-            
-            // Try backend login to fetch role/token (uses service role, bypasses RLS)
-            try {
-                const backendData = await SupabaseAPI.makeRequest('/api/auth/login', {
-                    method: 'POST',
-                    body: JSON.stringify(credentials)
-                });
 
-                if (backendData?.user) {
-                    userRole = backendData.user.role || 'client';
-                    userName = backendData.user.name || backendData.user.email || userName;
-                    localStorage.setItem('authToken', backendData.token);
-                    console.log('✅ Fetched role from backend login:', userRole);
+            // Fetch role/profile from the backend using the Supabase token
+            try {
+                const userData = await SupabaseAPI.makeRequest('/api/auth/me');
+                if (userData?.user) {
+                    userRole = userData.user.role || 'client';
+                    userName = userData.user.name || userData.user.email || userName;
+                    localStorage.setItem('authToken', authResult.session.access_token);
+                    console.log('Fetched role from backend:', userRole);
                 }
             } catch (error) {
-                console.log('Note: Backend login failed, falling back to Supabase', error);
+                console.log('Note: Could not fetch user profile from backend, using defaults', error);
+                // Continue with default role
             }
 
-            // Fallback: Try to fetch user profile from Supabase users table
-            if (userRole === 'client') {
-                try {
-                    const { data: userData, error: userError } = await window.supabaseClient
-                        .from('users')
-                        .select('id, email, name, role')
-                        .eq('id', authResult.user.id)
-                        .single();
-                    
-                    console.log('User data fetch result:', { userData, userError });
-                    
-                    if (userData && !userError) {
-                        userRole = userData.role || 'client';
-                        userName = userData.name || userData.email;
-                        console.log('✅ Fetched role from database:', userRole);
-                    } else {
-                        console.log('⚠️ Could not fetch role, using default:', userError);
-                    }
-                } catch (error) {
-                    console.log('Note: Could not fetch user profile, using defaults', error);
-                    // Continue with default role
-                }
-            }
-            
             console.log('Final user role:', userRole);
             
             // Store user info
@@ -998,7 +971,7 @@ async function handleSignin(form) {
             // Redirect based on role
             console.log('Checking redirect... Role is:', userRole);
             if (userRole === 'admin' || userRole === 'staff') {
-                console.log('🎯 Admin/Staff detected - redirecting to admin panel');
+                console.log('Admin/Staff detected - redirecting to admin panel');
                 showSuccessMessage('Welcome back! Redirecting to admin panel...');
                 setTimeout(() => {
                     console.log('Redirecting now...');
@@ -1056,7 +1029,7 @@ async function handleSignup(form) {
         }
 
         // Create account with Supabase Auth
-        console.log('📝 Creating Supabase account for:', userData.email);
+        console.log('Creating Supabase account for:', userData.email);
         const authResult = await SupabaseAuth.signUp(userData.email, userData.password, {
             firstName: userData.firstName,
             lastName: userData.lastName,
@@ -1064,11 +1037,11 @@ async function handleSignup(form) {
             role: 'client' // New users default to client role
         });
         
-        console.log('✅ Supabase auth created:', authResult.user.id);
+        console.log('Supabase auth created:', authResult.user.id);
         
         // Create user profile in the users table
         try {
-            console.log('📊 Creating user profile in database...');
+            console.log('Creating user profile in database...');
             const { data: profileData, error: profileError } = await window.supabaseClient
                 .from('users')
                 .insert([{
@@ -1082,11 +1055,11 @@ async function handleSignup(form) {
                 .select();
             
             if (profileError) {
-                console.error('⚠️ Profile creation error:', profileError);
+                console.error('Profile creation error:', profileError);
                 // Don't fail signup if profile creation fails - user can still sign in
                 // We'll create the profile later if needed
             } else {
-                console.log('✅ User profile created successfully');
+                console.log('User profile created successfully');
             }
         } catch (profileErr) {
             console.log('Note: Profile auto-creation skipped (will be created on first login):', profileErr);

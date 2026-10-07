@@ -323,17 +323,18 @@ app.get('/api/auth/me', authenticateUser, (req, res) => {
 // Get all active appointment types
 app.get('/api/appointment-types', async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from(TABLES.APPOINTMENT_TYPES)
             .select('*')
             .eq('is_active', true)
             .order('name');
 
         if (error) {
+            console.error('Error fetching appointment types:', error);
             return res.status(500).json({ message: 'Failed to fetch appointment types' });
         }
 
-        res.json(data);
+        res.json(data || []);
     } catch (error) {
         console.error('Error fetching appointment types:', error);
         res.status(500).json({ message: 'Server error' });
@@ -406,7 +407,7 @@ app.get('/api/available-slots', async (req, res) => {
             return res.json([]);
         }
 
-        let query = supabase
+        let query = supabaseAdmin
             .from(TABLES.AVAILABLE_SLOTS)
             .select(`
                 *,
@@ -432,10 +433,11 @@ app.get('/api/available-slots', async (req, res) => {
         const { data, error } = await query.order('start_time');
 
         if (error) {
+            console.error('Error fetching available slots:', error);
             return res.status(500).json({ message: 'Failed to fetch available slots' });
         }
 
-        res.json(data);
+        res.json(data || []);
     } catch (error) {
         console.error('Error fetching available slots:', error);
         res.status(500).json({ message: 'Server error' });
