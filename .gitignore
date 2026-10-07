@@ -370,3 +370,16 @@ scripts/security-check.js
 scripts/detailed-error.js
 # - No production URLs in development files
 # - No sensitive configuration values
+# Keep reproducible source while excluding local backend secrets/tools.
+!backend/
+backend/*
+!backend/server.js
+!backend/package.json
+!backend/package-lock.json
+!backend/routes/
+!backend/middleware/
+!backend/config/
+backend/config/*
+!backend/config/database.js
+!scripts/security-check.js
+!scripts/test-supabase.js

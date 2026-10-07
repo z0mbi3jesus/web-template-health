@@ -12,7 +12,9 @@ const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Client for frontend (limited permissions)
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const authOptions = { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } };
+const createAuthClient = () => createClient(supabaseUrl, supabaseAnonKey, authOptions);
+const supabase = createAuthClient();
 
 // Admin client for backend operations (full permissions)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
@@ -50,6 +52,7 @@ const APPOINTMENT_STATUS = {
 
 module.exports = {
   supabase,
+  createAuthClient,
   supabaseAdmin,
   TABLES,
   USER_ROLES,

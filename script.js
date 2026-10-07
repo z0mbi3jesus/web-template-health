@@ -311,7 +311,7 @@ function showNotification(message, type = 'info') {
     notification.innerHTML = `
         <div class="notification-content">
             <i class="fas ${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
+            <span>${window.escapeHtml(message)}</span>
             <button class="notification-close" aria-label="Close notification">
                 <i class="fas fa-times"></i>
             </button>
@@ -1325,7 +1325,7 @@ function updateUIForAuthenticatedUser(user) {
         const userMenu = document.createElement('div');
         userMenu.className = 'user-menu';
         userMenu.innerHTML = `
-            <span class="user-name">Welcome, ${user.name.split(' ')[0]}!</span>
+            <span class="user-name">Welcome, ${window.escapeHtml(user.name.split(' ')[0])}!</span>
             <button class="btn-secondary" onclick="handleSignOut()">Sign Out</button>
         `;
         
@@ -1569,6 +1569,8 @@ async function loadAvailableSlots(serviceId) {
             const lastName = nameParts.join(' ');
 
             acc[date].slots.push({
+                slot_id: slot.id,
+                raw_start_time: slot.start_time,
                 start_time: startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 end_time: endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 staff_id: slot.staff_id,
@@ -1678,19 +1680,18 @@ async function handleBooking(form) {
             return;
         }
 
-        // Parse start and end times
-        const [startTime, endTime] = selectedTime.split(' - ');
-
+        const selectedSlot = window.availableSlotsData?.find(day => day.date === selectedDate)?.slots.find(slot =>
+            slot.staff_id === staffId && slot.start_time + ' - ' + slot.end_time === selectedTime);
+        if (!selectedSlot) {
+            showFormError(form, 'general', 'That slot is unavailable. Refresh and select again.');
+            return;
+        }
         const bookingData = {
+            slot_id: selectedSlot.slot_id,
             appointment_type_id: serviceId,
-            staff_id: staffId,
-            appointment_date: selectedDate,
-            start_time: startTime.trim(),
-            end_time: endTime.trim(),
-            notes: notes || null
+            start_time: selectedSlot.raw_start_time,
+            client_notes: notes || null
         };
-
-        console.log('Booking appointment:', bookingData);
 
         // Call backend API
         const result = await SupabaseAPI.makeRequest('/api/appointments', {

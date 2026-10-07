@@ -43,3 +43,10 @@ This project was built as a learning experience focused on functionality and sys
 3. Set up a PostgreSQL database
 4. Add a `.env` file with your config
 5. Start the backend and frontend servers
+## Supported local entry points and database upgrades
+
+Run npm install at the repository root. npm start launches server-supabase.js; npm run frontend serves the public file allowlist on port 3000. backend/ is a separate legacy implementation, not the root API; its routes and authentication source are retained for review.
+
+Before deploying the revised booking API, apply database/migrations/002-video-visits-schema.sql followed by 003-booking-and-access-hardening.sql to an existing database initialized from database/schema.sql. Migration 003 makes booking and cancellation transactional, restricts direct browser writes, protects role columns, and removes stored video bearer tokens. Review the migrations against your actual schema first. No live migration is performed by npm start.
+
+npm test runs isolated local regression tests without loading credentials or contacting Supabase/Whereby. Root .env and backend/.env remain ignored. Database disable-RLS helpers are retired. Older alternate schema files are historical; schema.sql plus numbered migrations define the supported access model.

@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 
 // Import Supabase configuration
-const { supabase, supabaseAdmin, TABLES, USER_ROLES, APPOINTMENT_STATUS } = require('./config/supabase');
+const { supabase, supabaseAdmin, createAuthClient, TABLES, USER_ROLES, APPOINTMENT_STATUS } = require('./config/supabase');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,7 +39,7 @@ app.use(cors({
         if (
             !origin ||
             allowedOrigins.includes(origin) ||
-            /^https:\/\/.+\.vercel\.app$/i.test(origin)
+            /^https:\/\/web-template-health(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin)
         ) {
             return callback(null, true);
         }
@@ -54,6 +54,7 @@ const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100 // limit each IP to 100 requests per windowMs
 });
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 app.use(limiter);
 
 // Stricter rate limiting for auth endpoints
@@ -95,6 +96,10 @@ const authenticateUser = async (req, res, next) => {
             return res.status(401).json({ message: 'User profile not found' });
         }
 
+        if (!userProfile.is_active || !Object.values(USER_ROLES).includes(userProfile.role)) {
+            return res.status(401).json({ message: 'Active user profile required' });
+        }
+        req.authToken = token;
         req.user = userProfile;
         next();
     } catch (error) {
@@ -243,7 +248,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         }
 
         // Authenticate with Supabase
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        const { data: authData, error: authError } = await createAuthClient().auth.signInWithPassword({
             email,
             password
         });
@@ -289,7 +294,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 // Logout user
 app.post('/api/auth/logout', authenticateUser, async (req, res) => {
     try {
-        const { error } = await supabase.auth.signOut();
+        const { error } = await supabaseAdmin.auth.admin.signOut(req.authToken, 'local');
         
         if (error) {
             return res.status(500).json({ message: 'Logout failed' });
@@ -624,59 +629,18 @@ app.post('/api/appointments', authenticateUser, validateAppointment, async (req,
 
         const { slot_id, appointment_type_id, start_time, client_notes } = req.body;
 
-        // Get appointment type details
-        const { data: appointmentType, error: typeError } = await supabase
-            .from(TABLES.APPOINTMENT_TYPES)
-            .select('*')
-            .eq('id', appointment_type_id)
-            .single();
-
-        if (typeError || !appointmentType) {
-            return res.status(400).json({ message: 'Invalid appointment type' });
+        if (!slot_id || !/^[0-9a-f-]{36}$/i.test(slot_id)) {
+            return res.status(400).json({ message: 'A valid slot_id is required' });
         }
-
-        // Calculate end time
-        const startTime = new Date(start_time);
-        const endTime = new Date(startTime.getTime() + appointmentType.duration_minutes * 60000);
-
-        // Check if slot is available and book it
-        if (slot_id) {
-            const { data: slotData, error: slotError } = await supabaseAdmin
-                .rpc('book_slot', { slot_id });
-
-            if (slotError || !slotData) {
-                return res.status(409).json({ message: 'Slot no longer available' });
-            }
-        }
-
-        // Create appointment
-        const appointmentData = {
-            client_id: req.user.id,
-            slot_id,
-            appointment_type_id,
-            start_time: startTime.toISOString(),
-            end_time: endTime.toISOString(),
-            client_notes,
-            price: appointmentType.price,
-            status: appointmentType.requires_approval ? APPOINTMENT_STATUS.PENDING : APPOINTMENT_STATUS.CONFIRMED
-        };
-
-        const { data: appointment, error: appointmentError } = await supabaseAdmin
-            .from(TABLES.APPOINTMENTS)
-            .insert(appointmentData)
-            .select(`
-                *,
-                appointment_types:appointment_type_id(*),
-                clients:client_id(name, email, phone)
-            `)
-            .single();
-
+        const { data: appointment, error: appointmentError } = await supabaseAdmin.rpc('create_booked_appointment', {
+            p_client_id: req.user.id, p_slot_id: slot_id,
+            p_type_id: appointment_type_id, p_start_time: start_time,
+            p_notes: client_notes || null
+        });
         if (appointmentError) {
-            // Cancel the slot booking if appointment creation fails
-            if (slot_id) {
-                await supabaseAdmin.rpc('cancel_booking', { slot_id });
-            }
-            return res.status(500).json({ message: 'Failed to create appointment' });
+            const known = ['P0001', '22023'].includes(appointmentError.code);
+            console.error('Booking transaction failed:', appointmentError.code);
+            return res.status(known ? 409 : 500).json({ message: known ? 'Selected slot is unavailable or does not match this appointment' : 'Booking failed; verify database migration 003 is applied' });
         }
 
         res.status(201).json(appointment);
@@ -726,24 +690,11 @@ const updateAppointmentStatusHandler = async (req, res) => {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
-        const updateData = { status: requestedStatus };
-        if (requestedStatus === APPOINTMENT_STATUS.CONFIRMED) updateData.confirmed_at = new Date().toISOString();
-        if (requestedStatus === APPOINTMENT_STATUS.CANCELLED) updateData.cancelled_at = new Date().toISOString();
-        if (requestedStatus === APPOINTMENT_STATUS.COMPLETED) updateData.completed_at = new Date().toISOString();
-
-        const { data, error } = await supabaseAdmin
-            .from(TABLES.APPOINTMENTS)
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
-
+        const { data, error } = await supabaseAdmin.rpc('transition_appointment', {
+            p_appointment_id: id, p_actor_id: req.user.id, p_status: requestedStatus
+        });
         if (error) {
-            return res.status(500).json({ message: 'Failed to update appointment status' });
-        }
-
-        if (requestedStatus === APPOINTMENT_STATUS.CANCELLED && existingAppointment.slot_id) {
-            await supabaseAdmin.rpc('cancel_booking', { slot_id: existingAppointment.slot_id });
+            return res.status(error.code === 'P0001' ? 409 : 500).json({ message: 'Appointment could not be updated' });
         }
 
         res.json(data);
@@ -785,7 +736,7 @@ app.post('/api/video-visits', authenticateUser, requireRole([USER_ROLES.STAFF, U
 
         const { data: existing } = await supabaseAdmin
             .from('video_visits')
-            .select('*')
+            .select('id, appointment_id, created_by, room_id, status, started_at, ended_at, created_at')
             .eq('appointment_id', appointmentId)
             .in('status', ['pending', 'active'])
             .order('created_at', { ascending: false })
@@ -893,7 +844,6 @@ app.post('/api/video-visits/:videoVisitId/token', authenticateUser, async (req, 
         await supabaseAdmin
             .from('video_visits')
             .update({
-                access_token: token,
                 token_expires_at: expiresAt,
                 status: 'active',
                 started_at: new Date().toISOString()
@@ -1033,7 +983,7 @@ app.use((req, res) => {
 // SERVER STARTUP
 // =====================================================
 
-app.listen(PORT, () => {
+if (require.main === module) app.listen(PORT, () => {
     console.log(`Healthcare Appointment System (Supabase) running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:8081'}`);

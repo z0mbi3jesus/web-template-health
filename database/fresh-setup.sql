@@ -140,12 +140,12 @@ CREATE TRIGGER update_appointments_updated_at BEFORE UPDATE ON public.appointmen
 -- =====================================================
 -- DISABLE RLS FOR DEMO (IMPORTANT!)
 -- =====================================================
-ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.appointment_types DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.available_slots DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.appointments DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_log DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.appointment_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.available_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- GRANT PERMISSIONS TO SERVICE ROLE AND ANON

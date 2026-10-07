@@ -145,7 +145,7 @@ async function loadAppointmentTypes() {
     }
 
     const options = state.appointmentTypes
-        .map((type) => `<option value="${type.id}">${type.name} (${type.duration_minutes} min)</option>`)
+        .map((type) => `<option value="${window.escapeHtml(type.id)}">${window.escapeHtml(type.name)} (${type.duration_minutes} min)</option>`)
         .join('');
 
     els.typeSelect.innerHTML = options;
@@ -174,7 +174,7 @@ async function refreshCalendarData() {
             grouped[date] = [];
         }
 
-        const providerFullName = (slot.staff_name || slot.provider_name || '').trim();
+        const providerFullName = (slot.users?.name || slot.staff_name || slot.provider_name || '').trim();
         const nameParts = providerFullName ? providerFullName.split(/\s+/) : [];
         const firstName = nameParts.shift() || '';
         const lastName = nameParts.join(' ');
@@ -188,7 +188,7 @@ async function refreshCalendarData() {
             staff_id: slot.staff_id,
             staff_first_name: slot.staff_first_name || firstName,
             staff_last_name: slot.staff_last_name || lastName,
-            appointment_type_name: slot.appointment_type_name || ''
+            appointment_type_name: slot.appointment_types?.name || slot.appointment_type_name || ''
         });
     });
 
@@ -300,8 +300,8 @@ function renderSelectedDateSlots() {
         const staffName = `${slot.staff_first_name || ''} ${slot.staff_last_name || ''}`.trim() || 'Provider';
         return `
             <div class="slot-item">
-                <strong>${slot.display_start || slot.start_time} - ${slot.display_end || slot.end_time}</strong>
-                <div class="slot-meta">${staffName} | ${slot.appointment_type_name || 'Appointment'} </div>
+                <strong>${window.escapeHtml(slot.display_start || slot.start_time)} - ${window.escapeHtml(slot.display_end || slot.end_time)}</strong>
+                <div class="slot-meta">${window.escapeHtml(staffName)} | ${window.escapeHtml(slot.appointment_type_name || 'Appointment')} </div>
                 <div class="slot-actions">
                     <button class="btn btn-primary" type="button" data-slot-index="${idx}">Select Slot</button>
                 </div>
@@ -328,7 +328,7 @@ function updateChosenSlotPill() {
     const provider = `${state.chosenSlot.staff_first_name || ''} ${state.chosenSlot.staff_last_name || ''}`.trim();
     const startLabel = state.chosenSlot.display_start || state.chosenSlot.start_time;
     const endLabel = state.chosenSlot.display_end || state.chosenSlot.end_time;
-    els.selectedSlotPill.textContent = `${state.selectedDateIso} ${startLabel}-${endLabel}${provider ? ` with ${provider}` : ''}`;
+    els.selectedSlotPill.textContent = `${state.selectedDateIso} ${startLabel}-${endLabel}${provider ? ` with ${window.escapeHtml(provider)}` : ''}`;
 }
 
 function updateBookButtonState() {
@@ -392,10 +392,10 @@ async function loadMyAppointments() {
         return `
             <div class="appt-item">
                 <strong>${dateLabel} | ${startLabel}-${endLabel}</strong>
-                <div class="appt-meta">${appointmentName} with ${provider}</div>
-                <div style="margin-top:6px;"><span class="status ${appt.status}">${appt.status.replace('_', ' ')}</span></div>
+                <div class="appt-meta">${window.escapeHtml(appointmentName)} with ${window.escapeHtml(provider)}</div>
+                <div style="margin-top:6px;"><span class="status ${window.escapeHtml(appt.status)}">${window.escapeHtml(appt.status.replace('_', ' '))}</span></div>
                 <div class="appt-actions">
-                    ${canCancel ? `<button class="btn btn-secondary" type="button" data-cancel-id="${appt.id}">Cancel</button>` : ''}
+                    ${canCancel ? `<button class="btn btn-secondary" type="button" data-cancel-id="${window.escapeHtml(appt.id)}">Cancel</button>` : ''}
                 </div>
             </div>
         `;

@@ -39,7 +39,7 @@ export function showNotification(message, type = 'info') {
     notification.innerHTML = `
         <div class="notification-content">
             <i class="fas ${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
+            <span>${window.escapeHtml(message)}</span>
             <button class="notification-close" aria-label="Close notification">
                 <i class="fas fa-times"></i>
             </button>

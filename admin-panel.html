@@ -243,6 +243,7 @@
             font-weight: 600;
         }
     </style>
+    <script src="js/html-escape.js"></script>
 </head>
 <body>
     <div class="container">
@@ -692,9 +693,9 @@
             }
 
             container.innerHTML = appointmentTypes.map(type => `
-                <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; border-left: 3px solid ${type.color};">
-                    <strong>${type.name}</strong><br>
-                    <small>${type.duration_minutes} minutes - ${type.description}</small>
+                <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; border-left: 3px solid ${/^#[0-9a-f]{3,8}$/i.test(type.color || '') ? type.color : '#667eea'};">
+                    <strong>${window.escapeHtml(type.name)}</strong><br>
+                    <small>${window.escapeHtml(type.duration_minutes)} minutes - ${window.escapeHtml(type.description)}</small>
                 </div>
             `).join('');
         }
@@ -708,8 +709,8 @@
 
             container.innerHTML = staff.map(member => `
                 <div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">
-                    <strong>${member.name || member.email}</strong><br>
-                    <small>${member.role || 'staff'}${member.email ? ` - ${member.email}` : ''}</small>
+                    <strong>${window.escapeHtml(member.name || member.email)}</strong><br>
+                    <small>${window.escapeHtml(member.role || 'staff')}${member.email ? ` - ${window.escapeHtml(member.email)}` : ''}</small>
                 </div>
             `).join('');
         }
@@ -733,9 +734,9 @@
             container.innerHTML = filteredSlots.map(slot => `
                 <div class="slot-item">
                     <div class="slot-info">
-                        <strong>${slot.users?.name || 'Provider'}</strong><br>
+                        <strong>${window.escapeHtml(slot.users?.name || 'Provider')}</strong><br>
                         <small>${new Date(slot.start_time).toLocaleDateString()} ${new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}-${new Date(slot.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small><br>
-                        <small>${slot.appointment_types?.name || 'Appointment'} (${days[new Date(slot.start_time).getDay()]})</small>
+                        <small>${window.escapeHtml(slot.appointment_types?.name || 'Appointment')} (${days[new Date(slot.start_time).getDay()]})</small>
                     </div>
                     <div class="slot-actions">
                         <button class="btn btn-small btn-danger" onclick="deleteTimeSlot('${slot.id}')">Delete</button>
@@ -806,8 +807,8 @@
                     <div class="slot-item" style="align-items: flex-start;">
                         <div class="slot-info">
                             <strong>${dateLabel} ${startLabel} - ${endLabel}</strong><br>
-                            <small>${appointmentTypeName} | Client: ${clientName} | Provider: ${staffName}</small><br>
-                            <small style="font-weight:700; color:${statusColor}; text-transform: capitalize;">Status: ${status.replace('_', ' ')}</small>
+                            <small>${window.escapeHtml(appointmentTypeName)} | Client: ${window.escapeHtml(clientName)} | Provider: ${window.escapeHtml(staffName)}</small><br>
+                            <small style="font-weight:700; color:${statusColor}; text-transform: capitalize;">Status: ${window.escapeHtml(status.replace('_', ' '))}</small>
                         </div>
                         <div class="slot-actions">
                             ${canApprove ? `<button class="btn btn-small" onclick="updateAppointmentStatus('${appt.id}', 'confirmed')">Approve</button>` : ''}
@@ -831,7 +832,7 @@
             selects.forEach(select => {
                 select.innerHTML = '<option value="">Select appointment type...</option>' +
                     appointmentTypes.map(type => 
-                        `<option value="${type.id}">${type.name} (${type.duration_minutes} min)</option>`
+                        `<option value="${window.escapeHtml(type.id)}">${window.escapeHtml(type.name)} (${window.escapeHtml(type.duration_minutes)} min)</option>`
                     ).join('');
             });
         }
@@ -850,7 +851,7 @@
                 
                 select.innerHTML = defaultOption +
                     staff.map(member => 
-                        `<option value="${member.id}">${member.name || member.email} - ${member.role || 'staff'}</option>`
+                        `<option value="${window.escapeHtml(member.id)}">${window.escapeHtml(member.name || member.email)} - ${window.escapeHtml(member.role || 'staff')}</option>`
                     ).join('');
             });
         }

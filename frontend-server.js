@@ -5,7 +5,7 @@ const app = express();
 const PORT = 3000;
 
 // Serve static files from the root directory
-app.use(express.static(path.join(__dirname)));
+require('./scripts/serve-frontend')(app, __dirname);
 
 // Serve the main website
 app.get('/', (req, res) => {

@@ -5,7 +5,7 @@
 -- Temporarily disable RLS on appointment_types to test basic connection
 -- We'll re-enable it once we confirm the connection works
 
-ALTER TABLE public.appointment_types DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.appointment_types ENABLE ROW LEVEL SECURITY;
 
 -- Test that we can query appointment_types
 SELECT 'Testing appointment_types access...' AS test_message;

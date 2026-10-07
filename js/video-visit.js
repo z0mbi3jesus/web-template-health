@@ -40,7 +40,7 @@ async function initializeVideoVisit() {
 
         // Verify user role
         const userEmail = session.user.email;
-        const { data: userProfile } = await SupabaseAPI.makeRequest('/api/auth/me');
+        const userProfile = await SupabaseAPI.makeRequest('/api/auth/me');
         state.isStaff = userProfile?.user?.role === 'staff' || userProfile?.user?.role === 'admin';
 
         // Fetch appointment
@@ -191,7 +191,7 @@ async function loadWherebyVideo(tokenResponse) {
             // Handle connection errors
             wherbyRoom.on('error', (error) => {
                 console.error('Whereby error:', error);
-                showAlert(`Video error: ${error.message}`, 'error');
+                showAlert(`Video error: ${window.escapeHtml(error.message)}`, 'error');
             });
 
             // Store room reference for cleanup
@@ -201,18 +201,19 @@ async function loadWherebyVideo(tokenResponse) {
 
         } catch (error) {
             console.error('Failed to load Whereby video:', error);
-            showAlert(`Failed to load video: ${error.message}`, 'error');
+            showAlert(`Failed to load video: ${window.escapeHtml(error.message)}`, 'error');
         
             // Fallback display
             container.innerHTML = `
                 <div style="color: white; text-align: center; padding: 100px 20px;">
                     <h2>Video Connection Failed</h2>
-                    <p>${error.message}</p>
+                    <p>${window.escapeHtml(error.message)}</p>
                     <button onclick="location.reload()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
                         Retry
                     </button>
                 </div>
             `;
+            throw error;
         }
 
 

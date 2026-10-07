@@ -1,3 +1,4 @@
+BEGIN;
 -- HIPAA-Compliant Video Visits Schema
 -- Tracks secure video session metadata
 
@@ -33,24 +34,50 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Align both historical audit shapes with the video middleware.
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS action TEXT;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS operation TEXT;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS table_name TEXT;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS ip_address INET;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS user_agent TEXT;
+ALTER TABLE public.audit_log ALTER COLUMN operation DROP NOT NULL;
+ALTER TABLE public.audit_log ALTER COLUMN action DROP NOT NULL;
+-- Existing row-change triggers continue to populate operation/table_name.
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS resource_type VARCHAR(100);
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS resource_id VARCHAR(255);
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS status_code INT;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS error_message TEXT;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS details JSONB;
+ALTER TABLE public.audit_log DROP CONSTRAINT IF EXISTS audit_log_action_check;
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='audit_log' AND column_name='table_name') THEN
+   ALTER TABLE public.audit_log ALTER COLUMN table_name DROP NOT NULL;
+ END IF;
+END $$;
+
 -- Indexes for performance
-CREATE INDEX idx_video_visits_appointment ON video_visits(appointment_id);
-CREATE INDEX idx_video_visits_created_by ON video_visits(created_by);
-CREATE INDEX idx_video_visits_status ON video_visits(status);
-CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
-CREATE INDEX idx_audit_log_action ON audit_log(action);
-CREATE INDEX idx_audit_log_resource ON audit_log(resource_type, resource_id);
-CREATE INDEX idx_audit_log_created_at ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_video_visits_appointment ON video_visits(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_video_visits_created_by ON video_visits(created_by);
+CREATE INDEX IF NOT EXISTS idx_video_visits_status ON video_visits(status);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_log_resource ON audit_log(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
 
 -- Row Level Security (RLS) Policies
 ALTER TABLE video_visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS video_visits_select_client ON public.video_visits;
+DROP POLICY IF EXISTS video_visits_insert ON public.video_visits;
+DROP POLICY IF EXISTS audit_log_select ON public.audit_log;
+DROP POLICY IF EXISTS audit_log_insert ON public.audit_log;
 -- Video visits: Clients can only see their own appointment's video visits
 CREATE POLICY video_visits_select_client ON video_visits
     FOR SELECT USING (
         auth.uid() IN (
-            SELECT patient_id FROM appointments WHERE id = video_visits.appointment_id
+            SELECT client_id FROM appointments WHERE id = video_visits.appointment_id
         )
         OR auth.uid() IN (
             SELECT staff_id FROM appointments WHERE id = video_visits.appointment_id
@@ -62,7 +89,7 @@ CREATE POLICY video_visits_select_client ON video_visits
 CREATE POLICY video_visits_insert ON video_visits
     FOR INSERT WITH CHECK (
         auth.uid() IN (
-            SELECT staff_id FROM appointments WHERE id = NEW.appointment_id
+            SELECT staff_id FROM appointments WHERE id = video_visits.appointment_id
         )
         OR (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
     );
@@ -82,3 +109,5 @@ CREATE POLICY audit_log_insert ON audit_log
 GRANT SELECT, INSERT ON video_visits TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON appointments TO authenticated;
 GRANT SELECT, INSERT ON audit_log TO authenticated;
+
+COMMIT;

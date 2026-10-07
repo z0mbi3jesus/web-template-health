@@ -2,7 +2,7 @@
   "name": "web-template-health",
   "version": "0.1.0",
   "description": "Healthcare appointment management system with Supabase backend",
-  "main": "server.js",
+  "main": "server-supabase.js",
   "scripts": {
     "start": "node server-supabase.js",
     "dev": "nodemon server-supabase.js",
@@ -10,7 +10,7 @@
     "security-check": "node scripts/security-check.js",
     "test-supabase": "node scripts/test-supabase.js",
     "precommit": "npm run security-check",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test scripts/security-regression.test.js",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",
     "release:major": "node scripts/release.js major"
