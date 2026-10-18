@@ -27,7 +27,8 @@
     "booking"
   ],
   "author": "HealthCare Plus",
-  "license": "ISC",
+  "license": "UNLICENSED",
+  "private": true,
   "bugs": {
     "url": "https://github.com/z0mbi3jesus/web-template-health/issues"
   },

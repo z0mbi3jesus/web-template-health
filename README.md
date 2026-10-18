@@ -50,3 +50,9 @@ Run npm install at the repository root. npm start launches server-supabase.js; n
 Before deploying the revised booking API, apply database/migrations/002-video-visits-schema.sql followed by 003-booking-and-access-hardening.sql to an existing database initialized from database/schema.sql. Migration 003 makes booking and cancellation transactional, restricts direct browser writes, protects role columns, and removes stored video bearer tokens. Review the migrations against your actual schema first. No live migration is performed by npm start.
 
 npm test runs isolated local regression tests without loading credentials or contacting Supabase/Whereby. Root .env and backend/.env remain ignored. Database disable-RLS helpers are retired. Older alternate schema files are historical; schema.sql plus numbered migrations define the supported access model.
+
+## Licensing
+
+This project is proprietary. See [LICENSE](LICENSE). Use, redistribution, modification, or hosting requires a separate written license from HealthCare Plus. Authorized use of the hosted service is governed by the applicable service or subscription agreement; a subscription does not grant source-code rights.
+
+Third-party dependencies retain their own licenses. Previously released copies remain subject to their original licenses. Package metadata uses `UNLICENSED` and `private: true` to prevent accidental npm publication.
